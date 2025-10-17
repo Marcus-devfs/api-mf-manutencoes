@@ -138,3 +138,4 @@ export const tooManyRequests = (message: string = 'Muitas requisições'): Custo
 export const internalServerError = (message: string = 'Erro interno do servidor'): CustomError => {
   return new CustomError(message, 500);
 };
+

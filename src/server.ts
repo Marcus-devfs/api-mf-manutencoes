@@ -126,3 +126,4 @@ server.start().catch((error) => {
 });
 
 export default server;
+

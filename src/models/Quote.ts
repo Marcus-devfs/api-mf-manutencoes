@@ -202,3 +202,4 @@ quoteSchema.methods.removeMaterial = function(materialId: string) {
 };
 
 export const Quote = mongoose.model<IQuote>('Quote', quoteSchema);
+

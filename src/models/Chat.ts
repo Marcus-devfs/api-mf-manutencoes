@@ -149,3 +149,4 @@ chatSchema.methods.getOtherParticipant = function(userId: string) {
 
 export const ChatMessage = mongoose.model<IChatMessage>('ChatMessage', chatMessageSchema);
 export const Chat = mongoose.model<IChat>('Chat', chatSchema);
+

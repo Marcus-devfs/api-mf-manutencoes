@@ -178,3 +178,4 @@ serviceSchema.methods.removeImage = function(imageUrl: string) {
 };
 
 export const Service = mongoose.model<IService>('Service', serviceSchema);
+

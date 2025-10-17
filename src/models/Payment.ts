@@ -139,3 +139,4 @@ paymentSchema.methods.formatAmount = function() {
 };
 
 export const Payment = mongoose.model<IPayment>('Payment', paymentSchema);
+

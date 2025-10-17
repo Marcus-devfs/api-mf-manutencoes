@@ -113,3 +113,4 @@ notificationSchema.statics.getRecent = function(userId: string, limit: number = 
 };
 
 export const Notification = mongoose.model<INotification>('Notification', notificationSchema);
+
