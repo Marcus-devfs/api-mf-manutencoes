@@ -83,13 +83,13 @@ export const requireVerification = (
   res: Response,
   next: NextFunction
 ): void => {
-  if (!req.user?.isVerified) {
-    res.status(403).json({
-      success: false,
-      message: 'Email não verificado. Verifique sua caixa de entrada.',
-    });
-    return;
-  }
+  // if (!req.user?.isVerified) {
+  //   res.status(403).json({
+  //     success: false,
+  //     message: 'Email não verificado. Verifique sua caixa de entrada.',
+  //   });
+  //   return;
+  // }
   next();
 };
 

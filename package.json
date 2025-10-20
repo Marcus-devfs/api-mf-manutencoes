@@ -9,7 +9,8 @@
     "start": "node dist/server.js",
     "test": "jest",
     "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix"
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "seed": "ts-node src/scripts/seed.ts"
   },
   "keywords": ["api", "marcenaria", "nodejs", "typescript"],
   "author": "Marcus Silva",

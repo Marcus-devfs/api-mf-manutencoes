@@ -124,6 +124,20 @@ export class QuoteController {
     });
   });
 
+  // Buscar orçamentos por serviço
+  static getQuotesByService = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const { serviceId } = req.params;
+    const userId = (req as any).user._id;
+
+    const quotes = await QuoteService.getQuotesByService(serviceId, userId);
+
+    res.json({
+      success: true,
+      message: 'Orçamentos encontrados',
+      data: quotes,
+    });
+  });
+
   // Buscar orçamentos do cliente
   static getClientQuotes = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const clientId = (req as any).user._id;
@@ -139,7 +153,7 @@ export class QuoteController {
     res.json({
       success: true,
       message: 'Orçamentos encontrados',
-      data: result,
+      data: result.quotes || result,
     });
   });
 
@@ -158,7 +172,7 @@ export class QuoteController {
     res.json({
       success: true,
       message: 'Orçamentos encontrados',
-      data: result,
+      data: result.quotes || result,
     });
   });
 

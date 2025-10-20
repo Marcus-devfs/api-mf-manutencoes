@@ -73,6 +73,11 @@ router.post('/:quoteId/payment',
 );
 
 // Rotas compartilhadas
+router.get('/service/:serviceId', 
+  requireClientOrProfessional,
+  QuoteController.getQuotesByService
+);
+
 router.get('/:quoteId', 
   requireClientOrProfessional,
   QuoteController.getQuoteById

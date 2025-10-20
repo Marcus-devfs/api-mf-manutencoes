@@ -18,7 +18,7 @@ router.use(apiLimiter);
 router.use(authenticateToken);
 router.use(requireVerification);
 
-// Rotas públicas (com autenticação)
+// Rotas para profissionais
 router.get('/available', 
   requireProfessional,
   validatePagination,

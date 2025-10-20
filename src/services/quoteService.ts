@@ -56,7 +56,7 @@ export class QuoteService {
     try {
       const quote = await Quote.findById(quoteId)
         .populate('serviceId', 'title description category status')
-        .populate('professionalId', 'name email phone avatar')
+        .populate('professionalId', 'name email phone avatar rating')
         .populate('clientId', 'name email phone');
 
       if (!quote) {
@@ -64,6 +64,40 @@ export class QuoteService {
       }
 
       return quote;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Buscar orçamentos por serviço
+  static async getQuotesByService(serviceId: string, userId: string): Promise<IQuote[]> {
+    try {
+      // Verificar se o serviço existe
+      const service = await Service.findById(serviceId);
+      if (!service) {
+        throw notFound('Serviço não encontrado');
+      }
+
+      // Verificar se o usuário tem permissão (dono do serviço ou profissional)
+      const user = await User.findById(userId);
+      const isClient = service.clientId.toString() === userId;
+      const isProfessional = user?.role === 'professional';
+
+      if (!isClient && !isProfessional) {
+        throw forbidden('Você não tem permissão para ver esses orçamentos');
+      }
+
+      // Se for profissional, retornar apenas seus próprios orçamentos para este serviço
+      const filter: any = { serviceId };
+      if (isProfessional) {
+        filter.professionalId = userId;
+      }
+
+      const quotes = await Quote.find(filter)
+        .sort({ createdAt: -1 })
+        .populate('professionalId', 'name email phone avatar rating');
+
+      return quotes;
     } catch (error) {
       throw error;
     }
@@ -89,8 +123,16 @@ export class QuoteService {
           .sort({ createdAt: -1 })
           .skip(skip)
           .limit(limit)
-          .populate('serviceId', 'title description category status')
-          .populate('professionalId', 'name email phone avatar'),
+          .populate('serviceId', 'title description category status clientId')
+          .populate({
+            path: 'serviceId',
+            populate: {
+              path: 'clientId',
+              select: 'name email phone avatar'
+            }
+          })
+          .populate('professionalId', 'name email phone avatar rating')
+          .populate('clientId', 'name email phone'),
         Quote.countDocuments(filter)
       ]);
 
