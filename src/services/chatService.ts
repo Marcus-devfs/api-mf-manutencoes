@@ -2,6 +2,7 @@ import { Chat, ChatMessage, User, Service } from '../models';
 import { IChat, IChatMessage } from '../types';
 import { createError, notFound, badRequest, forbidden } from '../middlewares/errorHandler';
 import { PushNotificationService } from './pushNotificationService';
+import { getSocketService } from './socketService';
 
 export class ChatService {
   // Criar ou buscar chat existente
@@ -97,6 +98,29 @@ export class ChatService {
       } catch (notificationError) {
         console.error('❌ Erro ao enviar notificação push:', notificationError);
         // Não falhar a operação se a notificação falhar
+      }
+
+      // Notificar via WebSocket se disponível
+      try {
+        const socketService = getSocketService();
+        if (socketService) {
+          socketService.emitToChat(chatId, 'message:received', {
+            _id: chatMessage._id,
+            chatId: chatMessage.chatId,
+            senderId: chatMessage.senderId,
+            receiverId: chatMessage.receiverId,
+            message: chatMessage.message,
+            type: chatMessage.type,
+            fileUrl: chatMessage.fileUrl,
+            isRead: chatMessage.isRead,
+            timestamp: chatMessage.createdAt,
+            createdAt: chatMessage.createdAt
+          });
+          console.log(`🔌 Mensagem enviada via WebSocket para chat ${chatId}`);
+        }
+      } catch (wsError) {
+        console.error('❌ Erro ao enviar via WebSocket:', wsError);
+        // Não falhar a operação se o WebSocket falhar
       }
 
       return chatMessage;

@@ -3,14 +3,17 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
+import { createServer } from 'http';
 import { config } from './config/config';
 import database from './config/database';
 import routes from './routes';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
 import { generalLimiter } from './middlewares/rateLimiter';
+import { initializeSocketService } from './services/socketService';
 
 class Server {
   private app: express.Application;
+  private server: any;
   private port: number;
 
   constructor() {
@@ -85,13 +88,20 @@ class Server {
       // Conectar ao banco de dados
       await database.connect();
 
+      // Criar HTTP Server
+      this.server = createServer(this.app);
+
+      // Inicializar WebSocket
+      initializeSocketService(this.server);
+
       // Iniciar servidor
-      this.app.listen(this.port, () => {
+      this.server.listen(this.port, () => {
         console.log(`🚀 Servidor rodando na porta ${this.port}`);
         console.log(`📱 Ambiente: ${config.nodeEnv}`);
         console.log(`🌐 URL: http://localhost:${this.port}`);
         console.log(`📚 API: http://localhost:${this.port}/api/v1`);
         console.log(`❤️  Health: http://localhost:${this.port}/api/v1/health`);
+        console.log(`🔌 WebSocket: ws://localhost:${this.port}`);
       });
 
       // Graceful shutdown
@@ -108,6 +118,13 @@ class Server {
     console.log('\n🛑 Iniciando shutdown graceful...');
     
     try {
+      // Fechar servidor HTTP
+      if (this.server) {
+        this.server.close(() => {
+          console.log('🔌 Servidor HTTP fechado');
+        });
+      }
+
       await database.disconnect();
       console.log('✅ Shutdown concluído');
       process.exit(0);
