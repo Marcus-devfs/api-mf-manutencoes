@@ -31,11 +31,13 @@ export class SocketService {
   constructor(server: HTTPServer) {
     this.io = new SocketIOServer(server, {
       cors: {
-        origin: "*",
+        origin: config.nodeEnv === 'development' ? "*" : config.frontendUrl,
         methods: ["GET", "POST"],
         credentials: true
       },
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      allowEIO3: true,
+      path: '/socket.io/'
     });
 
     this.setupMiddleware();
@@ -46,9 +48,16 @@ export class SocketService {
     // Middleware de autenticação
     this.io.use(async (socket: AuthenticatedSocket, next) => {
       try {
+        console.log('🔌 Tentativa de conexão WebSocket:', {
+          id: socket.id,
+          auth: socket.handshake.auth,
+          headers: socket.handshake.headers
+        });
+
         const token = socket.handshake.auth.token;
         
         if (!token) {
+          console.log('❌ Token não fornecido na conexão WebSocket');
           return next(new Error('Token não fornecido'));
         }
 
@@ -58,6 +67,7 @@ export class SocketService {
         // Buscar usuário no banco
         const user = await User.findById(decoded.userId);
         if (!user) {
+          console.log('❌ Usuário não encontrado:', decoded.userId);
           return next(new Error('Usuário não encontrado'));
         }
 
@@ -65,6 +75,7 @@ export class SocketService {
         socket.userId = user._id.toString();
         socket.user = user;
         
+        console.log('✅ Autenticação WebSocket bem-sucedida:', user.name);
         next();
       } catch (error) {
         console.error('❌ Erro na autenticação WebSocket:', error);
@@ -145,10 +156,19 @@ export class SocketService {
             return;
           }
 
+          // Encontrar o destinatário (outro participante do chat)
+          const messageReceiverId = chat.participants.find(p => p !== socket.userId);
+          
+          if (!messageReceiverId) {
+            socket.emit('error', { message: 'Destinatário não encontrado' });
+            return;
+          }
+
           // Criar mensagem
           const newMessage = new ChatMessage({
             chatId,
             senderId: socket.userId,
+            receiverId: messageReceiverId,
             message,
             type,
             fileUrl,
@@ -161,15 +181,12 @@ export class SocketService {
           chat.lastMessage = newMessage;
           await chat.save();
 
-          // Encontrar o destinatário
-          const receiverId = chat.participants.find(p => p !== socket.userId);
-
           // Emitir mensagem para todos na sala do chat
           this.io.to(`chat:${chatId}`).emit('message:received', {
             _id: newMessage._id,
             chatId: newMessage.chatId,
             senderId: newMessage.senderId,
-            receiverId: receiverId,
+            receiverId: messageReceiverId,
             message: newMessage.message,
             type: newMessage.type,
             fileUrl: newMessage.fileUrl,
@@ -179,16 +196,16 @@ export class SocketService {
           });
 
           // Enviar notificação push para o destinatário se estiver offline
-          if (receiverId && !this.connectedUsers.has(receiverId)) {
+          if (messageReceiverId && !this.connectedUsers.has(messageReceiverId)) {
             try {
               await PushNotificationService.sendChatNotification(
-                receiverId,
+                messageReceiverId,
                 socket.user?.name || 'Usuário',
                 message,
                 chatId,
                 (chat as any).serviceTitle || 'Serviço'
               );
-              console.log(`📤 Notificação push enviada para ${receiverId}`);
+              console.log(`📤 Notificação push enviada para ${messageReceiverId}`);
             } catch (notificationError) {
               console.error('❌ Erro ao enviar notificação push:', notificationError);
             }

@@ -18,7 +18,7 @@ export const config = {
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
   
   // CORS
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+  frontendUrl: process.env.FRONTEND_URL || '*',
   
   // Email
   email: {

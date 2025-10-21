@@ -223,8 +223,24 @@ export class ChatService {
         })
       ]);
 
+      // Calcular unreadCount para cada chat
+      const chatsWithUnreadCount = await Promise.all(
+        chats.map(async (chat) => {
+          const unreadCount = await ChatMessage.countDocuments({
+            chatId: chat._id,
+            receiverId: userId,
+            isRead: false
+          });
+          
+          return {
+            ...chat.toObject(),
+            unreadCount
+          };
+        })
+      );
+
       return {
-        chats,
+        chats: chatsWithUnreadCount as unknown as IChat[],
         total,
         page,
         pages: Math.ceil(total / limit)

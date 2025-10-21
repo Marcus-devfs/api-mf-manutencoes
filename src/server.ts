@@ -32,10 +32,10 @@ class Server {
 
     // CORS
     this.app.use(cors({
-      origin: config.frontendUrl,
+      origin: config.nodeEnv === 'development' ? true : config.frontendUrl,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Access-Control-Allow-Origin']
     }));
 
     // Compression
@@ -62,6 +62,15 @@ class Server {
   private initializeRoutes(): void {
     // API routes
     this.app.use('/api/v1', routes);
+
+    // Socket.IO health check route
+    this.app.get('/socket.io/', (req, res) => {
+      res.json({
+        success: true,
+        message: 'Socket.IO está funcionando',
+        timestamp: new Date().toISOString()
+      });
+    });
 
     // Root route
     this.app.get('/', (req, res) => {
