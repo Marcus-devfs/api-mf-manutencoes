@@ -6,6 +6,7 @@ import quoteRoutes from './quotes';
 import chatRoutes from './chat';
 import paymentRoutes from './payments';
 import notificationRoutes from './notifications';
+import pushNotificationRoutes from './pushNotification';
 import uploadRoutes from './upload';
 
 const router = Router();
@@ -18,6 +19,7 @@ router.use('/quotes', quoteRoutes);
 router.use('/chat', chatRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/push-notifications', pushNotificationRoutes);
 router.use('/upload', uploadRoutes);
 
 // Rota de health check

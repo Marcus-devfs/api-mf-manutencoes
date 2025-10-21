@@ -7,4 +7,5 @@ export { Chat, ChatMessage } from './Chat';
 export { Payment } from './Payment';
 export { ProfessionalProfile } from './ProfessionalProfile';
 export { Notification } from './Notification';
+export { PushToken } from './PushToken';
 

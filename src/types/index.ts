@@ -287,3 +287,19 @@ export interface INotification extends Document {
   getUnreadCount(userId: string): Promise<number>;
   getRecent(userId: string, limit?: number): Promise<INotification[]>;
 }
+
+// Push Token Interface
+export interface IPushToken extends Document {
+  userId: string;
+  token: string;
+  platform: 'ios' | 'android' | 'web';
+  isActive: boolean;
+  deviceInfo?: {
+    deviceId?: string;
+    appVersion?: string;
+    osVersion?: string;
+    model?: string;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}

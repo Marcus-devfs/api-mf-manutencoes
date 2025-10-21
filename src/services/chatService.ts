@@ -1,6 +1,7 @@
 import { Chat, ChatMessage, User, Service } from '../models';
 import { IChat, IChatMessage } from '../types';
 import { createError, notFound, badRequest, forbidden } from '../middlewares/errorHandler';
+import { PushNotificationService } from './pushNotificationService';
 
 export class ChatService {
   // Criar ou buscar chat existente
@@ -77,6 +78,26 @@ export class ChatService {
       // Atualizar última mensagem do chat
       chat.lastMessage = chatMessage;
       await chat.save();
+
+      // Enviar notificação push para o destinatário
+      try {
+        const sender = await User.findById(senderId);
+        const service = await Service.findById(chat.serviceId);
+        
+        if (sender) {
+          await PushNotificationService.sendChatNotification(
+            receiverId,
+            sender.name,
+            message,
+            chatId,
+            service?.title
+          );
+          console.log(`📤 Notificação de chat enviada para ${receiverId}`);
+        }
+      } catch (notificationError) {
+        console.error('❌ Erro ao enviar notificação push:', notificationError);
+        // Não falhar a operação se a notificação falhar
+      }
 
       return chatMessage;
     } catch (error) {

@@ -4,6 +4,7 @@ import { User } from '../models';
 import { config } from '../config/config';
 import { createError, badRequest, unauthorized, conflict } from '../middlewares/errorHandler';
 import { IUser } from '../types';
+import { PushNotificationService } from './pushNotificationService';
 
 export class AuthService {
   // Registrar novo usuário
@@ -42,7 +43,7 @@ export class AuthService {
   }
 
   // Login
-  static async login(email: string, password: string): Promise<{ user: IUser; tokens: { accessToken: string; refreshToken: string } }> {
+  static async login(email: string, password: string, pushToken?: string, platform?: 'ios' | 'android' | 'web'): Promise<{ user: IUser; tokens: { accessToken: string; refreshToken: string } }> {
     try {
       // Buscar usuário com senha
       const user = await User.findOne({ email }).select('+password');
@@ -63,6 +64,17 @@ export class AuthService {
 
       // Gerar tokens
       const tokens = this.generateTokens(user);
+
+      // Registrar push token se fornecido
+      if (pushToken && platform) {
+        try {
+          await PushNotificationService.registerToken(user._id, pushToken, platform);
+          console.log(`📱 Push token registrado para usuário ${user._id}`);
+        } catch (tokenError) {
+          console.error('❌ Erro ao registrar push token no login:', tokenError);
+          // Não falhar o login se o token falhar
+        }
+      }
 
       return { user, tokens };
     } catch (error) {

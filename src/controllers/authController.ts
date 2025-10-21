@@ -95,9 +95,9 @@ export class AuthController {
 
   // Login
   static login = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const { email, password } = req.body;
+    const { email, password, pushToken, platform } = req.body;
 
-    const result = await AuthService.login(email, password);
+    const result = await AuthService.login(email, password, pushToken, platform);
 
     res.json({
       success: true,
