@@ -15,8 +15,22 @@ export class ChatService {
       }
 
       // Verificar se os usuários têm permissão para acessar este serviço
-      if (service.clientId !== userId1 && service.clientId !== userId2) {
-        throw forbidden('Você não tem permissão para acessar este chat');
+      // O cliente sempre tem permissão
+      // O profissional tem permissão se tem um orçamento aprovado para este serviço
+      const isClient = service.clientId === userId1 || service.clientId === userId2;
+      
+      if (!isClient) {
+        // Verificar se algum dos usuários é um profissional com orçamento aprovado
+        const { Quote } = await import('../models');
+        const approvedQuote = await Quote.findOne({
+          serviceId,
+          professionalId: { $in: [userId1, userId2] },
+          status: 'accepted'
+        });
+        
+        if (!approvedQuote) {
+          throw forbidden('Você não tem permissão para acessar este chat');
+        }
       }
 
       // Buscar chat existente
