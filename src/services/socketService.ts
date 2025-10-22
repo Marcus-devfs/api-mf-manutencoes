@@ -195,6 +195,41 @@ export class SocketService {
             createdAt: newMessage.createdAt
           });
 
+          // Buscar dados populados dos participantes para o evento
+          const populatedChat = await Chat.findById(chatId)
+            .populate('participants', 'name avatar')
+            .populate('serviceId', 'title description status');
+          
+          // Emitir evento global para atualizar lista de chats
+          this.io.to(`chat:${chatId}`).emit('chat:updated', {
+            _id: chat._id,
+            participants: populatedChat?.participants || chat.participants,
+            serviceId: populatedChat?.serviceId || chat.serviceId,
+            lastMessage: {
+              _id: newMessage._id,
+              chatId: newMessage.chatId,
+              senderId: newMessage.senderId,
+              receiverId: messageReceiverId,
+              message: newMessage.message,
+              type: newMessage.type,
+              fileUrl: newMessage.fileUrl,
+              isRead: newMessage.isRead,
+              timestamp: newMessage.createdAt,
+              createdAt: newMessage.createdAt
+            },
+            isActive: chat.isActive,
+            updatedAt: chat.updatedAt
+          });
+
+          // Emitir evento global para atualizar badges (para todos os participantes)
+          for (const participantId of chat.participants) {
+            const unreadCount = await this.getUnreadCount(participantId, chatId);
+            this.emitToUser(participantId, 'chat:badge:update', {
+              chatId: chat._id,
+              unreadCount
+            });
+          }
+
           // Enviar notificação push para o destinatário se estiver offline
           if (messageReceiverId && !this.connectedUsers.has(messageReceiverId)) {
             try {
@@ -230,6 +265,18 @@ export class SocketService {
             chatId,
             readBy: socket.userId
           });
+
+          // Emitir evento global para atualizar badges
+          const chat = await Chat.findById(chatId);
+          if (chat) {
+            for (const participantId of chat.participants) {
+              const unreadCount = await this.getUnreadCount(participantId, chatId);
+              this.emitToUser(participantId, 'chat:badge:update', {
+                chatId: chat._id,
+                unreadCount
+              });
+            }
+          }
           
         } catch (error) {
           console.error('❌ Erro ao marcar mensagens como lidas:', error);
@@ -286,6 +333,21 @@ export class SocketService {
 
   public isUserConnected(userId: string): boolean {
     return this.connectedUsers.has(userId);
+  }
+
+  // Método para obter contagem de mensagens não lidas
+  private async getUnreadCount(userId: string, chatId: string): Promise<number> {
+    try {
+      const count = await ChatMessage.countDocuments({
+        chatId,
+        receiverId: userId,
+        isRead: false
+      });
+      return count;
+    } catch (error) {
+      console.error('❌ Erro ao obter contagem de mensagens não lidas:', error);
+      return 0;
+    }
   }
 }
 
