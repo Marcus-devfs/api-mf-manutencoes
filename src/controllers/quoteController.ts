@@ -15,23 +15,29 @@ export class QuoteController {
       .isLength({ min: 5, max: 100 })
       .withMessage('Título deve ter entre 5 e 100 caracteres'),
     body('description')
+      .optional()
       .trim()
-      .isLength({ min: 20, max: 1000 })
-      .withMessage('Descrição deve ter entre 20 e 1000 caracteres'),
+      .isLength({ min: 10, max: 1000 })
+      .withMessage('Descrição deve ter entre 10 e 1000 caracteres'),
     body('materials')
-      .isArray({ min: 1 })
-      .withMessage('Pelo menos um material é obrigatório'),
+      .optional()
+      .isArray()
+      .withMessage('Materiais devem ser um array'),
     body('materials.*.name')
+      .optional()
       .trim()
       .isLength({ min: 2, max: 100 })
       .withMessage('Nome do material deve ter entre 2 e 100 caracteres'),
     body('materials.*.quantity')
+      .optional()
       .isFloat({ min: 0.01 })
       .withMessage('Quantidade deve ser maior que zero'),
     body('materials.*.unit')
+      .optional()
       .isIn(['unidade', 'metro', 'metro_quadrado', 'metro_cubico', 'kg', 'litro', 'caixa', 'pacote'])
       .withMessage('Unidade inválida'),
     body('materials.*.price')
+      .optional()
       .isFloat({ min: 0 })
       .withMessage('Preço deve ser maior ou igual a zero'),
     body('labor.description')
@@ -63,19 +69,16 @@ export class QuoteController {
       .withMessage('Descrição deve ter entre 20 e 1000 caracteres'),
     body('materials')
       .optional()
-      .isArray({ min: 1 })
-      .withMessage('Pelo menos um material é obrigatório'),
+      .isArray()
+      .withMessage('Materiais devem ser um array'),
     body('labor.description')
-      .optional()
       .trim()
       .isLength({ min: 10, max: 200 })
       .withMessage('Descrição da mão de obra deve ter entre 10 e 200 caracteres'),
     body('labor.hours')
-      .optional()
       .isFloat({ min: 0.5 })
       .withMessage('Horas devem ser pelo menos 0.5'),
     body('labor.pricePerHour')
-      .optional()
       .isFloat({ min: 0 })
       .withMessage('Preço por hora deve ser maior ou igual a zero'),
     body('validUntil')
@@ -96,10 +99,38 @@ export class QuoteController {
       throw notFound('Serviço não encontrado');
     }
 
+    // Calcular totais antes de salvar
+    const { materials, labor } = req.body;
+    
+    // Calcular total dos materiais
+    const materialsTotal = materials ? materials.reduce((sum: number, material: any) => {
+      if (material.name && material.name.trim() !== '') {
+        return sum + (material.quantity * material.price);
+      }
+      return sum;
+    }, 0) : 0;
+    
+    // Calcular total da mão de obra
+    let laborTotal = 0;
+    if (labor && labor.hours && labor.pricePerHour) {
+      laborTotal = labor.hours * labor.pricePerHour;
+    }
+    
+    const totalPrice = materialsTotal + laborTotal;
+    
+    console.log('🔧 Controller - Materials total:', materialsTotal);
+    console.log('🔧 Controller - Labor total:', laborTotal);
+    console.log('🔧 Controller - Total price:', totalPrice);
+    
     const quoteData = {
       ...req.body,
       professionalId,
       clientId: service.clientId,
+      totalPrice,
+      labor: labor ? {
+        ...labor,
+        total: laborTotal
+      } : undefined,
     };
 
     const quote = await QuoteService.createQuote(quoteData);
@@ -210,7 +241,37 @@ export class QuoteController {
     const professionalId = (req as any).user._id;
     const updateData = req.body;
 
-    const quote = await QuoteService.updateQuote(quoteId, professionalId, updateData);
+    // Calcular totais manualmente antes de enviar para o service
+    const { materials, labor } = updateData;
+    
+    // Calcular total de materiais
+    const materialsTotal = materials ? materials.reduce((sum: number, material: any) => {
+      if (material.name && material.name.trim() !== '') {
+        return sum + (material.quantity * material.price);
+      }
+      return sum;
+    }, 0) : 0;
+
+    // Calcular total de mão de obra
+    let laborTotal = 0;
+    if (labor && labor.hours && labor.pricePerHour) {
+      laborTotal = labor.hours * labor.pricePerHour;
+    }
+
+    // Calcular preço total
+    const totalPrice = materialsTotal + laborTotal;
+
+    // Adicionar os totais calculados aos dados de atualização
+    const finalUpdateData = {
+      ...updateData,
+      totalPrice,
+      labor: labor ? {
+        ...labor,
+        total: laborTotal
+      } : undefined,
+    };
+
+    const quote = await QuoteService.updateQuote(quoteId, professionalId, finalUpdateData);
 
     res.json({
       success: true,

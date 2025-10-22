@@ -48,11 +48,6 @@ export class SocketService {
     // Middleware de autenticação
     this.io.use(async (socket: AuthenticatedSocket, next) => {
       try {
-        console.log('🔌 Tentativa de conexão WebSocket:', {
-          id: socket.id,
-          auth: socket.handshake.auth,
-          headers: socket.handshake.headers
-        });
 
         const token = socket.handshake.auth.token;
         
@@ -67,7 +62,6 @@ export class SocketService {
         // Buscar usuário no banco
         const user = await User.findById(decoded.userId);
         if (!user) {
-          console.log('❌ Usuário não encontrado:', decoded.userId);
           return next(new Error('Usuário não encontrado'));
         }
 
@@ -75,7 +69,6 @@ export class SocketService {
         socket.userId = user._id.toString();
         socket.user = user;
         
-        console.log('✅ Autenticação WebSocket bem-sucedida:', user.name);
         next();
       } catch (error) {
         console.error('❌ Erro na autenticação WebSocket:', error);
@@ -86,7 +79,6 @@ export class SocketService {
 
   private setupEventHandlers() {
     this.io.on('connection', (socket: AuthenticatedSocket) => {
-      console.log(`🔌 Usuário conectado: ${socket.user?.name} (${socket.userId})`);
       
       // Armazenar conexão do usuário
       if (socket.userId) {
@@ -114,7 +106,6 @@ export class SocketService {
           }
 
           socket.join(`chat:${chatId}`);
-          console.log(`🚪 ${socket.user?.name} entrou no chat ${chatId}`);
           
           // Marcar mensagens como lidas
           await this.markMessagesAsRead(chatId, socket.userId!);
@@ -129,7 +120,6 @@ export class SocketService {
       socket.on('leave:chat', (data: { chatId: string }) => {
         const { chatId } = data;
         socket.leave(`chat:${chatId}`);
-        console.log(`🚪 ${socket.user?.name} saiu do chat ${chatId}`);
       });
 
       // Evento: Enviar mensagem
@@ -285,7 +275,6 @@ export class SocketService {
 
       // Evento: Desconexão
       socket.on('disconnect', (reason) => {
-        console.log(`🔌 Usuário desconectado: ${socket.user?.name} - ${reason}`);
         
         if (socket.userId) {
           this.connectedUsers.delete(socket.userId);

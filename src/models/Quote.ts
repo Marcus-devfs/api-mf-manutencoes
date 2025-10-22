@@ -4,23 +4,23 @@ import { IQuote } from '../types';
 const materialSchema = new Schema({
   name: {
     type: String,
-    required: [true, 'Nome do material é obrigatório'],
+    required: false,
     trim: true,
     maxlength: [100, 'Nome do material deve ter no máximo 100 caracteres'],
   },
   quantity: {
     type: Number,
-    required: [true, 'Quantidade é obrigatória'],
+    required: false,
     min: [0.01, 'Quantidade deve ser maior que zero'],
   },
   unit: {
     type: String,
-    required: [true, 'Unidade é obrigatória'],
+    required: false,
     enum: ['unidade', 'metro', 'metro_quadrado', 'metro_cubico', 'kg', 'litro', 'caixa', 'pacote'],
   },
   price: {
     type: Number,
-    required: [true, 'Preço é obrigatório'],
+    required: false,
     min: [0, 'Preço deve ser maior ou igual a zero'],
   },
 }, { _id: false });
@@ -74,9 +74,9 @@ const quoteSchema = new Schema<IQuote>({
   },
   description: {
     type: String,
-    required: [true, 'Descrição do orçamento é obrigatória'],
+    required: false,
     trim: true,
-    minlength: [20, 'Descrição deve ter pelo menos 20 caracteres'],
+    minlength: [10, 'Descrição deve ter pelo menos 10 caracteres'],
     maxlength: [1000, 'Descrição deve ter no máximo 1000 caracteres'],
   },
   materials: [materialSchema],
@@ -123,16 +123,28 @@ quoteSchema.index({ paymentStatus: 1 });
 quoteSchema.index({ validUntil: 1 });
 quoteSchema.index({ createdAt: -1 });
 
-// Middleware para calcular preço total antes de salvar
+// Middleware para calcular preço total antes de salvar (fallback)
 quoteSchema.pre('save', function(next) {
-  if (this.isModified('materials') || this.isModified('labor')) {
+  // Só calcular se totalPrice não foi definido
+  if (this.totalPrice === undefined || this.totalPrice === null) {
+    // Calcular total dos materiais (apenas materiais com nome preenchido)
     const materialsTotal = this.materials.reduce((sum, material) => {
-      return sum + (material.quantity * material.price);
+      if (material.name && material.name.trim() !== '') {
+        return sum + (material.quantity * material.price);
+      }
+      return sum;
     }, 0);
     
-    this.labor.total = this.labor.hours * this.labor.pricePerHour;
-    this.totalPrice = materialsTotal + this.labor.total;
+    // Calcular total da mão de obra
+    if (this.labor && this.labor.hours && this.labor.pricePerHour) {
+      this.labor.total = this.labor.hours * this.labor.pricePerHour;
+      this.totalPrice = materialsTotal + this.labor.total;
+    } else {
+      // Se não tem mão de obra, usar apenas materiais
+      this.totalPrice = materialsTotal;
+    }
   }
+  
   next();
 });
 
@@ -141,6 +153,34 @@ quoteSchema.pre('save', function(next) {
   if (this.validUntil < new Date() && this.status === 'pending') {
     this.status = 'expired';
   }
+  next();
+});
+
+// Middleware para calcular totais durante atualização
+quoteSchema.pre('findOneAndUpdate', function(next) {
+  const update = this.getUpdate() as any;
+  
+  if (update && (update.materials || update.labor)) {
+    // Calcular total dos materiais
+    const materials = update.materials || [];
+    const materialsTotal = materials.reduce((sum: number, material: any) => {
+      if (material.name && material.name.trim() !== '') {
+        return sum + (material.quantity * material.price);
+      }
+      return sum;
+    }, 0);
+    
+    // Calcular total da mão de obra
+    let laborTotal = 0;
+    if (update.labor && update.labor.hours && update.labor.pricePerHour) {
+      laborTotal = update.labor.hours * update.labor.pricePerHour;
+      update.labor.total = laborTotal;
+    }
+    
+    // Calcular preço total
+    update.totalPrice = materialsTotal + laborTotal;
+  }
+  
   next();
 });
 
