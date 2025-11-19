@@ -90,6 +90,11 @@ router.patch('/:serviceId/arrived',
   ServiceController.markArrived
 );
 
+router.patch('/:serviceId/regenerate-code', 
+  requireProfessional,
+  ServiceController.regenerateVerificationCode
+);
+
 router.patch('/:serviceId/verify-code', 
   requireProfessional,
   ServiceController.verifyCodeAndStart

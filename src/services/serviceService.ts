@@ -399,6 +399,62 @@ export class ServiceService {
     }
   }
 
+  // Regenerar código de verificação
+  static async regenerateVerificationCode(serviceId: string, professionalId: string): Promise<IService> {
+    try {
+      const quote = await Quote.findOne({ 
+        serviceId, 
+        professionalId,
+        status: 'accepted'
+      });
+      
+      if (!quote) {
+        throw notFound('Serviço não encontrado ou não autorizado');
+      }
+
+      const service = await Service.findById(serviceId);
+      if (!service) {
+        throw notFound('Serviço não encontrado');
+      }
+
+      // Verificar se o profissional já chegou
+      if (service.routeStatus !== 'arrived') {
+        throw badRequest('Você precisa marcar chegada antes de gerar um código de verificação');
+      }
+
+      // Gerar novo código de verificação de 5 dígitos
+      const verificationCode = this.generateVerificationCode();
+      const expiresAt = new Date();
+      expiresAt.setMinutes(expiresAt.getMinutes() + 15); // Código expira em 15 minutos
+
+      service.verificationCode = verificationCode;
+      service.verificationCodeExpiresAt = expiresAt;
+      await service.save();
+
+      // Emitir evento WebSocket
+      const socketService = getSocketService();
+      if (socketService) {
+        socketService.emitRouteStatusUpdate(service._id.toString(), 'arrived', {
+          arrivedAt: service.arrivedAt,
+          verificationCode, // Enviar novo código para o cliente via WebSocket
+        });
+      }
+
+      // Criar notificação para o cliente com o novo código
+      await (Notification as any).createNotification(
+        service.clientId,
+        'Novo Código de Verificação',
+        `Um novo código de verificação foi gerado. Seu código é: ${verificationCode}`,
+        'service_started',
+        { serviceId: service._id, quoteId: quote._id, verificationCode }
+      );
+
+      return service;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // Verificar código e iniciar serviço
   static async verifyCodeAndStartService(
     serviceId: string, 

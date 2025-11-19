@@ -258,6 +258,20 @@ export class ServiceController {
     });
   });
 
+  // Regenerar código de verificação
+  static regenerateVerificationCode = asyncHandler(async (req: Request, res: Response) => {
+    const { serviceId } = req.params;
+    const professionalId = (req as any).user._id;
+
+    const service = await ServiceService.regenerateVerificationCode(serviceId, professionalId);
+
+    return res.json({
+      success: true,
+      message: 'Novo código de verificação gerado',
+      data: { service },
+    });
+  });
+
   // Verificar código e iniciar serviço
   static verifyCodeAndStart = asyncHandler(async (req: Request, res: Response) => {
     const { serviceId } = req.params;
