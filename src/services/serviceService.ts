@@ -1,4 +1,4 @@
-import { Service, User, Quote } from '../models';
+import { Service, User, Quote, Notification } from '../models';
 import { IService, IQuote } from '../types';
 import { createError, notFound, badRequest, forbidden } from '../middlewares/errorHandler';
 
@@ -164,6 +164,49 @@ export class ServiceService {
       await Quote.updateMany(
         { serviceId, status: 'pending' },
         { status: 'expired' }
+      );
+
+      return service;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Iniciar serviço (profissional)
+  static async startService(serviceId: string, professionalId: string): Promise<IService> {
+    try {
+      const service = await Service.findById(serviceId);
+      if (!service) {
+        throw notFound('Serviço não encontrado');
+      }
+
+      // Verificar se há um orçamento aceito e pago para este serviço e profissional
+      const quote = await Quote.findOne({
+        serviceId: serviceId,
+        professionalId: professionalId,
+        status: 'accepted',
+        paymentStatus: 'paid'
+      });
+
+      if (!quote) {
+        throw badRequest('Não há orçamento aceito e pago para este serviço');
+      }
+
+      if (service.status !== 'in_progress') {
+        throw badRequest('Serviço não está pronto para ser iniciado');
+      }
+
+      // O serviço já está em 'in_progress' após o pagamento
+      // Aqui podemos adicionar um timestamp de início se necessário
+      // Por enquanto, apenas retornamos o serviço
+
+      // Criar notificação para o cliente
+      await (Notification as any).createNotification(
+        service.clientId,
+        'Serviço Iniciado',
+        `O profissional iniciou o serviço "${service.title}". Você pode acompanhar em tempo real.`,
+        'service_started',
+        { serviceId: service._id, quoteId: quote._id }
       );
 
       return service;

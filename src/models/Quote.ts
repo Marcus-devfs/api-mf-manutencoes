@@ -91,6 +91,11 @@ const quoteSchema = new Schema<IQuote>({
     required: [true, 'Data de validade é obrigatória'],
     validate: {
       validator: function(v: Date) {
+        // A validação só se aplica quando o orçamento está sendo criado ou ainda está pendente
+        // Se já foi aceito, não precisa validar a data de validade
+        if (this.status === 'accepted' || this.status === 'rejected') {
+          return true;
+        }
         return v > new Date();
       },
       message: 'Data de validade deve ser futura',
@@ -226,7 +231,8 @@ quoteSchema.methods.markAsPaid = function(paymentId: string) {
   }
   this.paymentStatus = 'paid';
   this.paymentId = paymentId;
-  return this.save();
+  // Usar validateBeforeSave: false para evitar validação de validUntil que pode ter expirado
+  return this.save({ validateBeforeSave: false });
 };
 
 // Método para adicionar material

@@ -194,6 +194,20 @@ export class ServiceController {
     });
   });
 
+  // Iniciar serviço (profissional)
+  static startService = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const { serviceId } = req.params;
+    const professionalId = (req as any).user._id;
+
+    const service = await ServiceService.startService(serviceId, professionalId);
+
+    res.json({
+      success: true,
+      message: 'Serviço iniciado com sucesso',
+      data: { service },
+    });
+  });
+
   // Marcar serviço como concluído
   static completeService = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const { serviceId } = req.params;

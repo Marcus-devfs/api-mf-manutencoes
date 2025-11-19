@@ -19,7 +19,7 @@ export class NotificationController {
       .isLength({ min: 5, max: 500 })
       .withMessage('Mensagem deve ter entre 5 e 500 caracteres'),
     body('type')
-      .isIn(['quote_received', 'quote_accepted', 'quote_rejected', 'payment_received', 'service_completed', 'chat_message'])
+      .isIn(['quote_received', 'quote_accepted', 'quote_rejected', 'payment_received', 'payment_confirmed', 'service_started', 'service_completed', 'chat_message'])
       .withMessage('Tipo de notificação inválido'),
   ];
 

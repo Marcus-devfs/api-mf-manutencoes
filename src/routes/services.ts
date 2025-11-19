@@ -75,6 +75,11 @@ router.patch('/:serviceId/cancel',
   ServiceController.cancelService
 );
 
+router.patch('/:serviceId/start', 
+  requireProfessional,
+  ServiceController.startService
+);
+
 router.patch('/:serviceId/complete', 
   requireClient,
   ServiceController.completeService

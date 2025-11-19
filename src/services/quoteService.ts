@@ -208,8 +208,8 @@ export class QuoteService {
         { status: 'rejected' }
       );
 
-      // Atualizar status do serviço
-      await Service.findByIdAndUpdate(quote.serviceId, { status: 'in_progress' });
+      // NÃO atualizar status do serviço aqui - aguardar pagamento
+      // O serviço só vai para 'in_progress' quando o pagamento for confirmado
 
       // Criar notificação para o profissional
       await (Notification as any).createNotification(
@@ -345,12 +345,24 @@ export class QuoteService {
 
       await payment.save();
 
+      // Atualizar status do serviço para 'in_progress' quando o pagamento é confirmado
+      await Service.findByIdAndUpdate(quote.serviceId, { status: 'in_progress' });
+
       // Criar notificação para o profissional
       await (Notification as any).createNotification(
         quote.professionalId,
         'Pagamento Recebido',
-        `Você recebeu o pagamento do orçamento "${quote.title}"`,
+        `Você recebeu o pagamento do orçamento "${quote.title}". Pode iniciar o serviço.`,
         'payment_received',
+        { quoteId: quote._id, paymentId: payment._id }
+      );
+
+      // Criar notificação para o cliente
+      await (Notification as any).createNotification(
+        quote.clientId,
+        'Pagamento Confirmado',
+        `Seu pagamento foi confirmado. O profissional será notificado para iniciar o serviço.`,
+        'payment_confirmed',
         { quoteId: quote._id, paymentId: payment._id }
       );
 

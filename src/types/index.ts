@@ -271,7 +271,7 @@ export interface INotification extends Document {
   userId: string;
   title: string;
   message: string;
-  type: 'quote_received' | 'quote_accepted' | 'quote_rejected' | 'payment_received' | 'service_completed' | 'chat_message';
+  type: 'quote_received' | 'quote_accepted' | 'quote_rejected' | 'payment_received' | 'payment_confirmed' | 'service_started' | 'service_completed' | 'chat_message';
   data?: any;
   isRead: boolean;
   createdAt: Date;
