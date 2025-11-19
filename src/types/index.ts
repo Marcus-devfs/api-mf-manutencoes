@@ -42,6 +42,8 @@ export interface IAddress extends Document {
 }
 
 // Service Types
+export type RouteStatus = 'not_started' | 'route_started' | 'in_transit' | 'arrived' | 'service_started' | 'service_completed';
+
 export interface IService extends Document {
   _id: string;
   clientId: string;
@@ -57,6 +59,24 @@ export interface IService extends Document {
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   priority: 'low' | 'medium' | 'high';
   deadline?: Date;
+  // Route tracking fields
+  routeStatus?: RouteStatus;
+  professionalLocation?: {
+    lat: number;
+    lng: number;
+    timestamp: Date;
+  };
+  routeStartedAt?: Date;
+  arrivedAt?: Date;
+  serviceStartedAt?: Date;
+  // Verification and signature fields
+  verificationCode?: string;
+  verificationCodeExpiresAt?: Date;
+  clientSignature?: {
+    signature: string; // Base64 da assinatura
+    signedAt: Date;
+    signedBy: string; // clientId
+  };
   createdAt: Date;
   updatedAt: Date;
   // Virtual properties

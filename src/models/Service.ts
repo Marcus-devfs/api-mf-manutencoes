@@ -124,6 +124,57 @@ const serviceSchema = new Schema<IService>({
       message: 'Prazo deve ser uma data futura',
     },
   },
+  // Route tracking fields
+  routeStatus: {
+    type: String,
+    enum: ['not_started', 'route_started', 'in_transit', 'arrived', 'service_started', 'service_completed'],
+    default: 'not_started',
+  },
+  professionalLocation: {
+    lat: {
+      type: Number,
+      min: -90,
+      max: 90,
+    },
+    lng: {
+      type: Number,
+      min: -180,
+      max: 180,
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  routeStartedAt: {
+    type: Date,
+  },
+  arrivedAt: {
+    type: Date,
+  },
+  serviceStartedAt: {
+    type: Date,
+  },
+  // Verification and signature fields
+  verificationCode: {
+    type: String,
+    length: 5,
+  },
+  verificationCodeExpiresAt: {
+    type: Date,
+  },
+  clientSignature: {
+    signature: {
+      type: String, // Base64 da assinatura
+    },
+    signedAt: {
+      type: Date,
+    },
+    signedBy: {
+      type: String, // clientId
+      ref: 'User',
+    },
+  },
 }, {
   timestamps: true,
 });

@@ -208,16 +208,96 @@ export class ServiceController {
     });
   });
 
-  // Marcar serviço como concluído
+  // Marcar serviço como concluído (apenas profissional, e apenas se assinado)
   static completeService = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const { serviceId } = req.params;
-    const clientId = (req as any).user._id;
+    const professionalId = (req as any).user._id;
 
-    const service = await ServiceService.completeService(serviceId, clientId);
+    const service = await ServiceService.completeService(serviceId, professionalId);
 
     res.json({
       success: true,
       message: 'Serviço marcado como concluído',
+      data: { service },
+    });
+  });
+
+  // Atualizar localização do profissional
+  static updateLocation = asyncHandler(async (req: Request, res: Response) => {
+    const { serviceId } = req.params;
+    const professionalId = (req as any).user._id;
+    const { lat, lng } = req.body;
+
+    if (!lat || !lng) {
+      return res.status(400).json({
+        success: false,
+        message: 'Latitude e longitude são obrigatórias',
+      });
+    }
+
+    const service = await ServiceService.updateProfessionalLocation(serviceId, professionalId, { lat, lng });
+
+    return res.json({
+      success: true,
+      message: 'Localização atualizada',
+      data: { service },
+    });
+  });
+
+  // Marcar que profissional chegou no local
+  static markArrived = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const { serviceId } = req.params;
+    const professionalId = (req as any).user._id;
+
+    const service = await ServiceService.markArrived(serviceId, professionalId);
+
+    res.json({
+      success: true,
+      message: 'Chegada registrada',
+      data: { service },
+    });
+  });
+
+  // Verificar código e iniciar serviço
+  static verifyCodeAndStart = asyncHandler(async (req: Request, res: Response) => {
+    const { serviceId } = req.params;
+    const professionalId = (req as any).user._id;
+    const { code } = req.body;
+
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Código de verificação é obrigatório',
+      });
+    }
+
+    const service = await ServiceService.verifyCodeAndStartService(serviceId, professionalId, code);
+
+    return res.json({
+      success: true,
+      message: 'Código verificado e serviço iniciado',
+      data: { service },
+    });
+  });
+
+  // Assinar serviço (cliente assina no celular do profissional)
+  static signService = asyncHandler(async (req: Request, res: Response) => {
+    const { serviceId } = req.params;
+    const clientId = (req as any).user._id;
+    const { signature } = req.body;
+
+    if (!signature) {
+      return res.status(400).json({
+        success: false,
+        message: 'Assinatura é obrigatória',
+      });
+    }
+
+    const service = await ServiceService.signService(serviceId, clientId, signature);
+
+    return res.json({
+      success: true,
+      message: 'Serviço assinado com sucesso',
       data: { service },
     });
   });
