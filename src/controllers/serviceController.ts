@@ -297,7 +297,8 @@ export class ServiceController {
   // Assinar serviço (cliente assina no celular do profissional)
   static signService = asyncHandler(async (req: Request, res: Response) => {
     const { serviceId } = req.params;
-    const clientId = (req as any).user._id;
+    const userId = (req as any).user._id;
+    const userRole = (req as any).user.role;
     const { signature } = req.body;
 
     if (!signature) {
@@ -307,7 +308,12 @@ export class ServiceController {
       });
     }
 
-    const service = await ServiceService.signService(serviceId, clientId, signature);
+    // Se for profissional, buscar o clientId do serviço
+    // Se for cliente, usar o próprio ID
+    const clientId = userRole === 'professional' ? null : userId;
+    const professionalId = userRole === 'professional' ? userId : null;
+
+    const service = await ServiceService.signService(serviceId, clientId, professionalId, signature);
 
     return res.json({
       success: true,

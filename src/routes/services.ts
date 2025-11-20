@@ -101,7 +101,7 @@ router.patch('/:serviceId/verify-code',
 );
 
 router.patch('/:serviceId/sign', 
-  requireClient,
+  requireClientOrProfessional,
   ServiceController.signService
 );
 

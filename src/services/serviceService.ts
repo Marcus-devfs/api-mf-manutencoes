@@ -243,6 +243,11 @@ export class ServiceService {
         throw notFound('Serviço não encontrado');
       }
 
+      // Verificar se já está concluído
+      if (service.status === 'completed' || service.routeStatus === 'service_completed') {
+        throw badRequest('Serviço já foi concluído');
+      }
+
       if (service.status !== 'in_progress') {
         throw badRequest('Apenas serviços em andamento podem ser marcados como concluídos');
       }
@@ -525,7 +530,8 @@ export class ServiceService {
   // Assinar serviço (cliente assina no celular do profissional)
   static async signService(
     serviceId: string,
-    clientId: string,
+    clientId: string | null,
+    professionalId: string | null,
     signature: string // Base64 da assinatura
   ): Promise<IService> {
     try {
@@ -534,38 +540,96 @@ export class ServiceService {
         throw notFound('Serviço não encontrado');
       }
 
-      // Verificar se o cliente é o dono do serviço
-      if (service.clientId.toString() !== clientId) {
-        throw forbidden('Você não tem permissão para assinar este serviço');
-      }
-
-      // Verificar se o serviço foi iniciado
-      if (service.routeStatus !== 'service_started') {
-        throw badRequest('O serviço precisa estar iniciado para ser assinado');
-      }
-
-      // Verificar se já foi assinado
-      if (service.clientSignature) {
-        throw badRequest('Serviço já foi assinado');
-      }
-
-      // Salvar assinatura
-      service.clientSignature = {
-        signature,
-        signedAt: new Date(),
-        signedBy: clientId,
-      };
-      await service.save();
-
-      // Emitir evento WebSocket
-      const socketService = getSocketService();
-      if (socketService) {
-        socketService.emitRouteStatusUpdate(service._id.toString(), 'service_signed', {
-          signedAt: service.clientSignature.signedAt,
+      // Se for profissional enviando, verificar se ele está associado ao serviço
+      if (professionalId) {
+        const quote = await Quote.findOne({
+          serviceId,
+          professionalId,
+          status: 'accepted'
         });
+        
+        if (!quote) {
+          throw forbidden('Você não tem permissão para coletar assinatura deste serviço');
+        }
+        
+        // Usar o clientId do serviço
+        const actualClientId = service.clientId.toString();
+        
+        // Verificar se o serviço foi iniciado
+        if (service.routeStatus !== 'service_started') {
+          throw badRequest('O serviço precisa estar iniciado para ser assinado');
+        }
+
+        // Verificar se já foi assinado (verificar se tem signature, não apenas se o objeto existe)
+        if (service.clientSignature && service.clientSignature.signature) {
+          throw badRequest('Serviço já foi assinado');
+        }
+
+        // Salvar assinatura (coletada pelo profissional, mas assinada pelo cliente)
+        service.clientSignature = {
+          signature,
+          signedAt: new Date(),
+          signedBy: actualClientId,
+        };
+        await service.save();
+
+        // Emitir evento WebSocket
+        const socketService = getSocketService();
+        if (socketService) {
+          socketService.emitRouteStatusUpdate(service._id.toString(), 'service_signed', {
+            signedAt: service.clientSignature.signedAt,
+          });
+        }
+
+        // Criar notificação para o cliente
+        await (Notification as any).createNotification(
+          actualClientId,
+          'Serviço Assinado',
+          `A assinatura do serviço "${service.title}" foi coletada pelo profissional.`,
+          'service_completed',
+          { serviceId: service._id, quoteId: quote._id }
+        );
+
+        return service;
       }
 
-      return service;
+      // Se for cliente assinando diretamente
+      if (clientId) {
+        // Verificar se o cliente é o dono do serviço
+        if (service.clientId.toString() !== clientId) {
+          throw forbidden('Você não tem permissão para assinar este serviço');
+        }
+
+        // Verificar se o serviço foi iniciado
+        if (service.routeStatus !== 'service_started') {
+          throw badRequest('O serviço precisa estar iniciado para ser assinado');
+        }
+
+        // Verificar se já foi assinado (verificar se tem signature, não apenas se o objeto existe)
+        if (service.clientSignature && service.clientSignature.signature) {
+          throw badRequest('Serviço já foi assinado');
+        }
+
+        // Salvar assinatura
+        service.clientSignature = {
+          signature,
+          signedAt: new Date(),
+          signedBy: clientId,
+        };
+        await service.save();
+
+        // Emitir evento WebSocket
+        const socketService = getSocketService();
+        if (socketService) {
+          socketService.emitRouteStatusUpdate(service._id.toString(), 'service_signed', {
+            signedAt: service.clientSignature.signedAt,
+          });
+        }
+
+        return service;
+      }
+
+      throw badRequest('Cliente ou profissional deve ser fornecido');
     } catch (error) {
       throw error;
     }
