@@ -117,6 +117,7 @@ export class QuoteService {
       const filter: any = { clientId };
       if (status) filter.status = status;
       if (serviceId) filter.serviceId = serviceId;
+      filter.validUntil = { $gte: new Date() };
 
       const [quotes, total] = await Promise.all([
         Quote.find(filter)
@@ -161,6 +162,7 @@ export class QuoteService {
       const filter: any = { professionalId };
       if (status) filter.status = status;
       if (serviceId) filter.serviceId = serviceId;
+      filter.validUntil = { $gte: new Date() };
 
       const [quotes, total] = await Promise.all([
         Quote.find(filter)
