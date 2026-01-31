@@ -8,6 +8,7 @@ export class ServiceService {
   static async createService(serviceData: Omit<IService, '_id' | 'createdAt' | 'updatedAt'>): Promise<IService> {
     try {
       // Verificar se o cliente existe
+      console.log('Dados do serviço:', serviceData);
       const client = await User.findById(serviceData.clientId);
       if (!client || client.role !== 'client') {
         throw badRequest('Cliente não encontrado');
@@ -18,6 +19,7 @@ export class ServiceService {
 
       return service;
     } catch (error) {
+      console.log('Erro ao criar serviço', error);
       throw error;
     }
   }
@@ -228,12 +230,12 @@ export class ServiceService {
   // Marcar serviço como concluído (apenas se estiver assinado)
   static async completeService(serviceId: string, professionalId: string): Promise<IService> {
     try {
-      const quote = await Quote.findOne({ 
-        serviceId, 
+      const quote = await Quote.findOne({
+        serviceId,
         professionalId,
         status: 'accepted'
       });
-      
+
       if (!quote) {
         throw notFound('Serviço não encontrado ou não autorizado');
       }
@@ -296,12 +298,12 @@ export class ServiceService {
   ): Promise<IService> {
     try {
       // Verificar se o serviço existe e o profissional está associado
-      const quote = await Quote.findOne({ 
-        serviceId, 
+      const quote = await Quote.findOne({
+        serviceId,
         professionalId,
         status: 'accepted'
       });
-      
+
       if (!quote) {
         throw notFound('Serviço não encontrado ou não autorizado');
       }
@@ -334,7 +336,7 @@ export class ServiceService {
           lng: location.lng,
           timestamp,
         });
-        
+
         if (service.routeStatus === 'in_transit') {
           socketService.emitRouteStatusUpdate(service._id.toString(), 'in_transit');
         }
@@ -354,12 +356,12 @@ export class ServiceService {
   // Marcar que profissional chegou no local e gerar código de verificação
   static async markArrived(serviceId: string, professionalId: string): Promise<IService> {
     try {
-      const quote = await Quote.findOne({ 
-        serviceId, 
+      const quote = await Quote.findOne({
+        serviceId,
         professionalId,
         status: 'accepted'
       });
-      
+
       if (!quote) {
         throw notFound('Serviço não encontrado ou não autorizado');
       }
@@ -407,12 +409,12 @@ export class ServiceService {
   // Regenerar código de verificação
   static async regenerateVerificationCode(serviceId: string, professionalId: string): Promise<IService> {
     try {
-      const quote = await Quote.findOne({ 
-        serviceId, 
+      const quote = await Quote.findOne({
+        serviceId,
         professionalId,
         status: 'accepted'
       });
-      
+
       if (!quote) {
         throw notFound('Serviço não encontrado ou não autorizado');
       }
@@ -462,17 +464,17 @@ export class ServiceService {
 
   // Verificar código e iniciar serviço
   static async verifyCodeAndStartService(
-    serviceId: string, 
-    professionalId: string, 
+    serviceId: string,
+    professionalId: string,
     code: string
   ): Promise<IService> {
     try {
-      const quote = await Quote.findOne({ 
-        serviceId, 
+      const quote = await Quote.findOne({
+        serviceId,
         professionalId,
         status: 'accepted'
       });
-      
+
       if (!quote) {
         throw notFound('Serviço não encontrado ou não autorizado');
       }
@@ -547,14 +549,14 @@ export class ServiceService {
           professionalId,
           status: 'accepted'
         });
-        
+
         if (!quote) {
           throw forbidden('Você não tem permissão para coletar assinatura deste serviço');
         }
-        
+
         // Usar o clientId do serviço
         const actualClientId = service.clientId.toString();
-        
+
         // Verificar se o serviço foi iniciado
         if (service.routeStatus !== 'service_started') {
           throw badRequest('O serviço precisa estar iniciado para ser assinado');
@@ -679,7 +681,7 @@ export class ServiceService {
       // Buscar perfil profissional para obter localização
       const { ProfessionalProfile } = await import('../models');
       const profile = await ProfessionalProfile.findOne({ userId: professionalId });
-      
+
       if (!profile) {
         throw notFound('Perfil profissional não encontrado');
       }
@@ -687,7 +689,7 @@ export class ServiceService {
       const { page = 1, limit = 10, category, radius = profile.serviceRadius } = options;
       const skip = (page - 1) * limit;
 
-      const filter: any = { 
+      const filter: any = {
         status: 'pending'
       };
 
@@ -741,14 +743,14 @@ export class ServiceService {
       }
 
       const quotes = await Quote.find({ serviceId });
-      
+
       const stats = {
         totalQuotes: quotes.length,
         pendingQuotes: quotes.filter(q => q.status === 'pending').length,
         acceptedQuotes: quotes.filter(q => q.status === 'accepted').length,
         rejectedQuotes: quotes.filter(q => q.status === 'rejected').length,
-        averagePrice: quotes.length > 0 
-          ? quotes.reduce((sum, q) => sum + q.totalPrice, 0) / quotes.length 
+        averagePrice: quotes.length > 0
+          ? quotes.reduce((sum, q) => sum + q.totalPrice, 0) / quotes.length
           : 0
       };
 
@@ -773,20 +775,20 @@ export class ServiceService {
     limit?: number;
   }): Promise<{ services: IService[]; total: number; page: number; pages: number }> {
     try {
-      const { 
-        query, 
-        category, 
-        status, 
-        priority, 
-        minBudget, 
-        maxBudget, 
-        lat, 
-        lng, 
+      const {
+        query,
+        category,
+        status,
+        priority,
+        minBudget,
+        maxBudget,
+        lat,
+        lng,
         radius = 50,
-        page = 1, 
-        limit = 10 
+        page = 1,
+        limit = 10
       } = searchParams;
-      
+
       const skip = (page - 1) * limit;
       const filter: any = {};
 

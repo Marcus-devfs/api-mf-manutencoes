@@ -24,21 +24,24 @@ export class ServiceController {
       .withMessage('Imagens devem ser um array'),
     body('images.*')
       .optional()
-      .isURL()
-      .withMessage('Cada imagem deve ser uma URL válida'),
+      .isString()
+      .withMessage('Cada imagem deve ser um texto válido'),
     body('address.title')
       .trim()
       .isLength({ min: 2, max: 50 })
       .withMessage('Título do endereço deve ter entre 2 e 50 caracteres'),
     body('address.street')
+      .optional({ values: 'falsy' })
       .trim()
       .isLength({ min: 2, max: 100 })
       .withMessage('Rua deve ter entre 2 e 100 caracteres'),
     body('address.number')
+      .optional({ values: 'falsy' })
       .trim()
       .isLength({ min: 1, max: 10 })
       .withMessage('Número deve ter entre 1 e 10 caracteres'),
     body('address.neighborhood')
+      .optional({ values: 'falsy' })
       .trim()
       .isLength({ min: 2, max: 50 })
       .withMessage('Bairro deve ter entre 2 e 50 caracteres'),
@@ -51,22 +54,23 @@ export class ServiceController {
       .isLength({ min: 2, max: 2 })
       .withMessage('Estado deve ter 2 caracteres'),
     body('address.zipCode')
+      .optional({ values: 'falsy' })
       .matches(/^\d{5}-?\d{3}$/)
       .withMessage('CEP deve estar no formato XXXXX-XXX'),
     body('budget.min')
-      .optional()
+      .optional({ values: 'falsy' })
       .isFloat({ min: 0 })
       .withMessage('Orçamento mínimo deve ser maior que zero'),
     body('budget.max')
-      .optional()
+      .optional({ values: 'falsy' })
       .isFloat({ min: 0 })
       .withMessage('Orçamento máximo deve ser maior que zero'),
     body('priority')
-      .optional()
+      .optional({ values: 'falsy' })
       .isIn(['low', 'medium', 'high'])
       .withMessage('Prioridade deve ser low, medium ou high'),
     body('deadline')
-      .optional()
+      .optional({ values: 'falsy' })
       .isISO8601()
       .withMessage('Prazo deve ser uma data válida'),
   ];
@@ -101,6 +105,8 @@ export class ServiceController {
   static createService = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const clientId = (req as any).user._id;
     const serviceData = { ...req.body, clientId };
+
+    console.log('serviceData', serviceData);
 
     const service = await ServiceService.createService(serviceData);
 
@@ -374,18 +380,18 @@ export class ServiceController {
 
   // Buscar serviços com filtros avançados
   static searchServices = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const { 
-      query, 
-      category, 
-      status, 
-      priority, 
-      minBudget, 
-      maxBudget, 
-      lat, 
-      lng, 
+    const {
+      query,
+      category,
+      status,
+      priority,
+      minBudget,
+      maxBudget,
+      lat,
+      lng,
       radius,
-      page, 
-      limit 
+      page,
+      limit
     } = req.query;
 
     const result = await ServiceService.searchServices({

@@ -29,7 +29,7 @@ const serviceSchema = new Schema<IService>({
   images: [{
     type: String,
     validate: {
-      validator: function(v: string) {
+      validator: function (v: string) {
         return /^https?:\/\/.+\.(jpg|jpeg|png|webp)$/i.test(v);
       },
       message: 'URL da imagem inválida',
@@ -38,17 +38,14 @@ const serviceSchema = new Schema<IService>({
   address: {
     title: {
       type: String,
-      required: true,
       trim: true,
     },
     street: {
       type: String,
-      required: true,
       trim: true,
     },
     number: {
       type: String,
-      required: true,
       trim: true,
     },
     complement: {
@@ -57,7 +54,6 @@ const serviceSchema = new Schema<IService>({
     },
     neighborhood: {
       type: String,
-      required: true,
       trim: true,
     },
     city: {
@@ -73,7 +69,6 @@ const serviceSchema = new Schema<IService>({
     },
     zipCode: {
       type: String,
-      required: true,
       trim: true,
     },
     coordinates: {
@@ -98,7 +93,7 @@ const serviceSchema = new Schema<IService>({
       type: Number,
       min: [0, 'Orçamento máximo deve ser maior que zero'],
       validate: {
-        validator: function(this: IService, v: number) {
+        validator: function (this: IService, v: number) {
           return !this.budget?.min || v >= this.budget.min;
         },
         message: 'Orçamento máximo deve ser maior ou igual ao mínimo',
@@ -118,7 +113,7 @@ const serviceSchema = new Schema<IService>({
   deadline: {
     type: Date,
     validate: {
-      validator: function(v: Date) {
+      validator: function (v: Date) {
         return !v || v > new Date();
       },
       message: 'Prazo deve ser uma data futura',
@@ -188,7 +183,7 @@ serviceSchema.index({ createdAt: -1 });
 serviceSchema.index({ 'address.coordinates': '2dsphere' });
 
 // Virtual para calcular dias até o prazo
-serviceSchema.virtual('daysUntilDeadline').get(function() {
+serviceSchema.virtual('daysUntilDeadline').get(function () {
   if (!this.deadline) return null;
   const now = new Date();
   const diffTime = this.deadline.getTime() - now.getTime();
@@ -196,25 +191,25 @@ serviceSchema.virtual('daysUntilDeadline').get(function() {
 });
 
 // Virtual para verificar se está próximo do prazo
-serviceSchema.virtual('isNearDeadline').get(function() {
+serviceSchema.virtual('isNearDeadline').get(function () {
   const days = this.daysUntilDeadline;
   return days !== null && days <= 3 && days >= 0;
 });
 
 // Virtual para verificar se está atrasado
-serviceSchema.virtual('isOverdue').get(function() {
+serviceSchema.virtual('isOverdue').get(function () {
   const days = this.daysUntilDeadline;
   return days !== null && days < 0;
 });
 
 // Método para atualizar status
-serviceSchema.methods.updateStatus = function(newStatus: string) {
+serviceSchema.methods.updateStatus = function (newStatus: string) {
   this.status = newStatus;
   return this.save();
 };
 
 // Método para adicionar imagem
-serviceSchema.methods.addImage = function(imageUrl: string) {
+serviceSchema.methods.addImage = function (imageUrl: string) {
   if (this.images.length < 10) { // Limite de 10 imagens
     this.images.push(imageUrl);
     return this.save();
@@ -223,7 +218,7 @@ serviceSchema.methods.addImage = function(imageUrl: string) {
 };
 
 // Método para remover imagem
-serviceSchema.methods.removeImage = function(imageUrl: string) {
+serviceSchema.methods.removeImage = function (imageUrl: string) {
   this.images = this.images.filter((img: string) => img !== imageUrl);
   return this.save();
 };

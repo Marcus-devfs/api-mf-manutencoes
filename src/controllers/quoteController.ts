@@ -15,41 +15,7 @@ export class QuoteController {
       .isLength({ min: 5, max: 100 })
       .withMessage('Título deve ter entre 5 e 100 caracteres'),
     body('description')
-      .optional()
-      .trim()
-      .isLength({ min: 10, max: 1000 })
-      .withMessage('Descrição deve ter entre 10 e 1000 caracteres'),
-    body('materials')
-      .optional()
-      .isArray()
-      .withMessage('Materiais devem ser um array'),
-    body('materials.*.name')
-      .optional()
-      .trim()
-      .isLength({ min: 2, max: 100 })
-      .withMessage('Nome do material deve ter entre 2 e 100 caracteres'),
-    body('materials.*.quantity')
-      .optional()
-      .isFloat({ min: 0.01 })
-      .withMessage('Quantidade deve ser maior que zero'),
-    body('materials.*.unit')
-      .optional()
-      .isIn(['unidade', 'metro', 'metro_quadrado', 'metro_cubico', 'kg', 'litro', 'caixa', 'pacote'])
-      .withMessage('Unidade inválida'),
-    body('materials.*.price')
-      .optional()
-      .isFloat({ min: 0 })
-      .withMessage('Preço deve ser maior ou igual a zero'),
-    body('labor.description')
-      .trim()
-      .isLength({ min: 10, max: 200 })
-      .withMessage('Descrição da mão de obra deve ter entre 10 e 200 caracteres'),
-    body('labor.hours')
-      .isFloat({ min: 0.5 })
-      .withMessage('Horas devem ser pelo menos 0.5'),
-    body('labor.pricePerHour')
-      .isFloat({ min: 0 })
-      .withMessage('Preço por hora deve ser maior ou igual a zero'),
+      .optional(),
     body('validUntil')
       .isISO8601()
       .withMessage('Data de validade deve ser uma data válida'),
@@ -63,24 +29,7 @@ export class QuoteController {
       .isLength({ min: 5, max: 100 })
       .withMessage('Título deve ter entre 5 e 100 caracteres'),
     body('description')
-      .optional()
-      .trim()
-      .isLength({ min: 20, max: 1000 })
-      .withMessage('Descrição deve ter entre 20 e 1000 caracteres'),
-    body('materials')
-      .optional()
-      .isArray()
-      .withMessage('Materiais devem ser um array'),
-    body('labor.description')
-      .trim()
-      .isLength({ min: 10, max: 200 })
-      .withMessage('Descrição da mão de obra deve ter entre 10 e 200 caracteres'),
-    body('labor.hours')
-      .isFloat({ min: 0.5 })
-      .withMessage('Horas devem ser pelo menos 0.5'),
-    body('labor.pricePerHour')
-      .isFloat({ min: 0 })
-      .withMessage('Preço por hora deve ser maior ou igual a zero'),
+      .optional(),
     body('validUntil')
       .optional()
       .isISO8601()
@@ -101,7 +50,7 @@ export class QuoteController {
 
     // Calcular totais antes de salvar
     const { materials, labor } = req.body;
-    
+
     // Calcular total dos materiais
     const materialsTotal = materials ? materials.reduce((sum: number, material: any) => {
       if (material.name && material.name.trim() !== '') {
@@ -109,19 +58,25 @@ export class QuoteController {
       }
       return sum;
     }, 0) : 0;
-    
+
     // Calcular total da mão de obra
     let laborTotal = 0;
-    if (labor && labor.hours && labor.pricePerHour) {
+
+    // Se o cliente enviou o total diretamente (orçamento simples), usamos ele
+    if (labor && labor.total) {
+      laborTotal = labor.total;
+    }
+    // Caso contrário, calculamos baseado em horas e preço (orçamento detalhado legado)
+    else if (labor && labor.hours && labor.pricePerHour) {
       laborTotal = labor.hours * labor.pricePerHour;
     }
-    
+
     const totalPrice = materialsTotal + laborTotal;
-    
+
     console.log('🔧 Controller - Materials total:', materialsTotal);
     console.log('🔧 Controller - Labor total:', laborTotal);
     console.log('🔧 Controller - Total price:', totalPrice);
-    
+
     const quoteData = {
       ...req.body,
       professionalId,
@@ -243,7 +198,7 @@ export class QuoteController {
 
     // Calcular totais manualmente antes de enviar para o service
     const { materials, labor } = updateData;
-    
+
     // Calcular total de materiais
     const materialsTotal = materials ? materials.reduce((sum: number, material: any) => {
       if (material.name && material.name.trim() !== '') {
@@ -350,15 +305,15 @@ export class QuoteController {
   static searchQuotes = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const userId = (req as any).user._id;
     const userRole = (req as any).user.role;
-    const { 
-      status, 
-      minPrice, 
-      maxPrice, 
-      category, 
-      dateFrom, 
+    const {
+      status,
+      minPrice,
+      maxPrice,
+      category,
+      dateFrom,
       dateTo,
-      page, 
-      limit 
+      page,
+      limit
     } = req.query;
 
     const result = await QuoteService.searchQuotes({

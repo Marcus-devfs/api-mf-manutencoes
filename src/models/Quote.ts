@@ -30,17 +30,15 @@ const laborSchema = new Schema({
     type: String,
     required: [true, 'Descrição da mão de obra é obrigatória'],
     trim: true,
-    maxlength: [200, 'Descrição deve ter no máximo 200 caracteres'],
+    maxlength: [1000, 'Descrição deve ter no máximo 1000 caracteres'],
   },
   hours: {
     type: Number,
     required: false, // Opcional para orçamento simples
-    min: [0.5, 'Horas devem ser pelo menos 0.5'],
   },
   pricePerHour: {
     type: Number,
     required: false, // Opcional para orçamento simples
-    min: [0, 'Preço por hora deve ser maior ou igual a zero'],
   },
   total: {
     type: Number,
@@ -76,7 +74,6 @@ const quoteSchema = new Schema<IQuote>({
     type: String,
     required: false,
     trim: true,
-    minlength: [10, 'Descrição deve ter pelo menos 10 caracteres'],
     maxlength: [1000, 'Descrição deve ter no máximo 1000 caracteres'],
   },
   materials: [materialSchema],

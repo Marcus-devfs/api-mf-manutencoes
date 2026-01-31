@@ -97,6 +97,9 @@ class Server {
       // Conectar ao banco de dados
       await database.connect();
 
+      // Tentar liberar a porta antes de iniciar
+      await this.killProcessOnPort(this.port);
+
       // Criar HTTP Server
       this.server = createServer(this.app);
 
@@ -123,9 +126,26 @@ class Server {
     }
   }
 
+  private async killProcessOnPort(port: number): Promise<void> {
+    return new Promise((resolve) => {
+      import('child_process').then(({ exec }) => {
+        exec(`lsof -ti :${port} | xargs kill -9`, (error) => {
+          if (error) {
+            // Se der erro, provavelmente não tinha processo rodando ou não temos permissão.
+            // Apenas ignoramos e seguimos.
+          } else {
+            console.log(`🧹 Porta ${port} limpa com sucesso.`);
+          }
+          // Pequeno delay para garantir que o SO liberou a porta
+          setTimeout(resolve, 500);
+        });
+      });
+    });
+  }
+
   private async shutdown(): Promise<void> {
     console.log('\n🛑 Iniciando shutdown graceful...');
-    
+
     try {
       // Fechar servidor HTTP
       if (this.server) {
