@@ -341,9 +341,9 @@ export class UserController {
   });
 
   // Verificar status da conta de pagamentos (Asaas) do profissional
-  static getPaymentAccountStatus = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+  static getPaymentAccountStatus = asyncHandler(async (req: Request, res: Response) => {
     const userId = (req as any).user._id;
-    const user = await UserService.getUserById(userId); // Reusing UserService to get user
+    const user = await UserService.getUserById(userId);
 
     if (!user) throw notFound('Usuário não encontrado');
 
@@ -358,22 +358,25 @@ export class UserController {
 
         if (!updatedUser?.asaasAccountId) {
           // Se falhou, retorna status não criado
-          return res.json({
+          res.json({
             success: true,
             data: { status: 'NOT_CREATED', message: 'Conta de recebimento não criada.' }
           });
+          return;
         }
 
         // Se criou agora, provavelmente é PENDING
-        return res.json({
+        res.json({
           success: true,
           data: { status: 'PENDING', message: 'Conta em análise' }
         });
+        return;
       } catch (error) {
-        return res.json({
+        res.json({
           success: true, // Retornamos success true mas com status indicando o estado
           data: { status: 'ERROR', message: 'Erro ao criar conta Asaas' }
         });
+        return;
       }
     }
 

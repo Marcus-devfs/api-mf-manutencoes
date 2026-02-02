@@ -23,13 +23,6 @@ router.get('/methods',
   PaymentController.getPaymentMethods
 );
 
-// Rotas para processar pagamentos
-router.post('/stripe',
-  requireClient,
-  PaymentController.stripePaymentValidation,
-  handleValidationErrors,
-  PaymentController.processStripePayment
-);
 
 router.post('/pix',
   requireClient,

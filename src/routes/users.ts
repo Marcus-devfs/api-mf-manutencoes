@@ -5,7 +5,8 @@ import {
   requireVerification,
   requireAdmin,
   requireClientOrProfessional,
-  apiLimiter
+  apiLimiter,
+  requireProfessional
 } from '../middlewares';
 import { handleValidationErrors, validatePagination } from '../middlewares/validation';
 
@@ -87,6 +88,12 @@ router.post('/professionals/:professionalId/rate',
   UserController.rateProfessional
 );
 
+router.get(
+  '/payment-account-status',
+  requireProfessional, // Auth já foi aplicado globalmente mas mantemos requireProfessional
+  UserController.getPaymentAccountStatus
+);
+
 // Rotas para buscar usuários específicos
 router.get('/:userId',
   UserController.getUserById
@@ -109,12 +116,7 @@ router.patch('/:userId/reactivate',
   UserController.reactivateAccount
 );
 
-router.get(
-  '/payment-account-status',
-  authenticateToken,
-  requireProfessional,
-  UserController.getPaymentAccountStatus
-);
+
 
 export default router;
 

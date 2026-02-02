@@ -178,6 +178,11 @@ export interface IPayment extends Document {
   isProcessing: boolean;
   isSuccessful: boolean;
   hasFailed: boolean;
+  // Split Analysis
+  appFee: number;
+  netAmount: number;
+  gatewayFee: number;
+  availableAt: Date;
   // Methods
   markAsCompleted(transactionId?: string): Promise<IPayment>;
   markAsFailed(): Promise<IPayment>;
