@@ -5,69 +5,82 @@ import { createError, notFound, badRequest, forbidden } from '../middlewares/err
 import { config } from '../config/config';
 
 export class PaymentService {
-  // Processar pagamento com Stripe
-  static async processStripePayment(quoteId: string, paymentMethodId: string, clientId: string): Promise<{
+  // Processar pagamento com Cartão de Crédito (via Asaas)
+  static async processCreditCardPayment(quoteId: string, creditCardData: {
+    holderName: string;
+    number: string;
+    expiryMonth: string;
+    expiryYear: string;
+    ccv: string;
+  }, holderInfo: {
+    name: string;
+    email: string;
+    cpfCnpj: string;
+    postalCode: string;
+    addressNumber: string;
+    phone: string;
+  }, clientId: string): Promise<{
     payment: IPayment;
-    clientSecret?: string;
   }> {
     try {
       const quote = await Quote.findById(quoteId);
-      if (!quote) {
-        throw notFound('Orçamento não encontrado');
-      }
+      if (!quote) throw notFound('Orçamento não encontrado');
+      if (quote.clientId !== clientId) throw forbidden('Você não tem permissão para pagar este orçamento');
+      if (quote.status !== 'accepted') throw badRequest('Apenas orçamentos aceitos podem ser pagos');
+      if (quote.paymentStatus === 'paid') throw badRequest('Orçamento já foi pago');
 
-      if (quote.clientId !== clientId) {
-        throw forbidden('Você não tem permissão para pagar este orçamento');
-      }
+      // 1. Criar/Buscar Cliente e Profissional no Asaas
+      const asaasCustomerId = await AsaasService.createCustomer(clientId);
+      const asaasProfessionalId = await AsaasService.createProfessionalAccount(quote.professionalId);
 
-      if (quote.status !== 'accepted') {
-        throw badRequest('Apenas orçamentos aceitos podem ser pagos');
-      }
+      // 2. Processar Pagamento via Asaas
+      const asaasPayment = await AsaasService.createPayment(
+        asaasCustomerId,
+        quote.totalPrice,
+        asaasProfessionalId,
+        `Pagamento Orçamento #${quote._id}`,
+        quote._id.toString(),
+        'CREDIT_CARD',
+        creditCardData,
+        holderInfo
+      );
 
-      if (quote.paymentStatus === 'paid') {
-        throw badRequest('Orçamento já foi pago');
-      }
+      // 3. Cálculos de Taxas (Estimativa)
+      const appFeePercentage = 0.10; // 10%
+      const appFee = quote.totalPrice * appFeePercentage;
+      const gatewayFee = 0.50 + (quote.totalPrice * 0.0299); // Exemplo: R$ 0,50 + 2.99% (ajustar conforme Asaas)
+      const netAmount = quote.totalPrice - appFee; // Profissional recebe 90% (o Gateway descontará suas taxas do Holder da Wallet se configurado, aqui assumimos que o split já separa o valor bruto do profissional) 
 
-      // Aqui você integraria com o Stripe
-      // Por enquanto, vamos simular o processo
-      const stripe = require('stripe')(config.stripe.secretKey);
+      // Ajuste: O Asaas cobra taxas. Se a taxa for descontada de quem recebe, o netAmount pode variar.
+      // Simplificação: Consideramos netAmount = (Total - AppFee). O Asaas descontará sua taxa desse montante ou do montante total.
+      // Para fins de exibição no app, netAmount é o que a plataforma repassa "teoricamente".
 
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(quote.totalPrice * 100), // Converter para centavos
-        currency: 'brl',
-        payment_method: paymentMethodId,
-        confirmation_method: 'manual',
-        confirm: true,
-        metadata: {
-          quoteId: quote._id.toString(),
-          clientId: clientId,
-          professionalId: quote.professionalId,
-        },
-      });
+      const availableDate = new Date();
+      availableDate.setDate(availableDate.getDate() + 30); // Cartão demora ~30 dias
 
-      // Criar registro de pagamento
+      // 4. Salvar
       const payment = new Payment({
         quoteId: quote._id,
         clientId: clientId,
         professionalId: quote.professionalId,
         amount: quote.totalPrice,
         currency: 'BRL',
-        status: paymentIntent.status === 'succeeded' ? 'completed' : 'pending',
+        status: asaasPayment.status === 'CONFIRMED' || asaasPayment.status === 'RECEIVED' ? 'completed' : 'pending',
         paymentMethod: 'credit_card',
-        stripePaymentIntentId: paymentIntent.id,
+        transactionId: asaasPayment.id,
+        appFee,
+        netAmount,
+        gatewayFee,
+        availableAt: availableDate
       });
 
       await payment.save();
 
-      // Se o pagamento foi bem-sucedido, atualizar o orçamento
-      if (paymentIntent.status === 'succeeded') {
-        await quote.markAsPaid(paymentIntent.id);
+      if (payment.status === 'completed') {
+        await quote.markAsPaid(asaasPayment.id);
       }
 
-      return {
-        payment,
-        clientSecret: paymentIntent.client_secret
-      };
+      return { payment };
     } catch (error) {
       throw error;
     }
@@ -109,6 +122,11 @@ export class PaymentService {
       );
 
       // 4. Salvar no Banco
+      const appFee = quote.totalPrice * 0.10;
+      const netAmount = quote.totalPrice - appFee;
+      const availableDate = new Date(); // PIX é imediato ou D+1 dependendo da regra, vamos por D+1 por segurança
+      availableDate.setDate(availableDate.getDate() + 1);
+
       const payment = new Payment({
         quoteId: quote._id,
         clientId: clientId,
@@ -117,7 +135,11 @@ export class PaymentService {
         currency: 'BRL',
         status: 'pending',
         paymentMethod: 'pix',
-        transactionId: asaasPayment.id, // ID do Asaas
+        transactionId: asaasPayment.id,
+        appFee,
+        netAmount,
+        gatewayFee: 0.99, // Exemplo taxa fixa PIX Asaas
+        availableAt: availableDate
       });
 
       await payment.save();

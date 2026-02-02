@@ -45,6 +45,23 @@ const paymentSchema = new Schema<IPayment>({
     type: String,
     default: null,
   },
+  // Split Analysis
+  appFee: {
+    type: Number,
+    default: 0
+  },
+  netAmount: {
+    type: Number,
+    default: 0
+  },
+  gatewayFee: {
+    type: Number,
+    default: 0
+  },
+  availableAt: {
+    type: Date,
+    default: null
+  }
 }, {
   timestamps: true,
 });
@@ -60,27 +77,27 @@ paymentSchema.index({ transactionId: 1 });
 paymentSchema.index({ createdAt: -1 });
 
 // Virtual para verificar se pode ser reembolsado
-paymentSchema.virtual('canBeRefunded').get(function() {
+paymentSchema.virtual('canBeRefunded').get(function () {
   return this.status === 'completed';
 });
 
 // Virtual para verificar se está processando
-paymentSchema.virtual('isProcessing').get(function() {
+paymentSchema.virtual('isProcessing').get(function () {
   return this.status === 'pending';
 });
 
 // Virtual para verificar se foi bem-sucedido
-paymentSchema.virtual('isSuccessful').get(function() {
+paymentSchema.virtual('isSuccessful').get(function () {
   return this.status === 'completed';
 });
 
 // Virtual para verificar se falhou
-paymentSchema.virtual('hasFailed').get(function() {
+paymentSchema.virtual('hasFailed').get(function () {
   return this.status === 'failed';
 });
 
 // Método para marcar como concluído
-paymentSchema.methods.markAsCompleted = function(transactionId?: string) {
+paymentSchema.methods.markAsCompleted = function (transactionId?: string) {
   if (this.status !== 'pending') {
     throw new Error('Apenas pagamentos pendentes podem ser marcados como concluídos');
   }
@@ -92,7 +109,7 @@ paymentSchema.methods.markAsCompleted = function(transactionId?: string) {
 };
 
 // Método para marcar como falhado
-paymentSchema.methods.markAsFailed = function() {
+paymentSchema.methods.markAsFailed = function () {
   if (this.status !== 'pending') {
     throw new Error('Apenas pagamentos pendentes podem ser marcados como falhados');
   }
@@ -101,7 +118,7 @@ paymentSchema.methods.markAsFailed = function() {
 };
 
 // Método para processar reembolso
-paymentSchema.methods.processRefund = function() {
+paymentSchema.methods.processRefund = function () {
   if (!this.canBeRefunded) {
     throw new Error('Apenas pagamentos concluídos podem ser reembolsados');
   }
@@ -110,7 +127,7 @@ paymentSchema.methods.processRefund = function() {
 };
 
 // Método para obter status em português
-paymentSchema.methods.getStatusInPortuguese = function() {
+paymentSchema.methods.getStatusInPortuguese = function () {
   const statusMap = {
     pending: 'Pendente',
     completed: 'Concluído',
@@ -121,7 +138,7 @@ paymentSchema.methods.getStatusInPortuguese = function() {
 };
 
 // Método para obter método de pagamento em português
-paymentSchema.methods.getPaymentMethodInPortuguese = function() {
+paymentSchema.methods.getPaymentMethodInPortuguese = function () {
   const methodMap = {
     credit_card: 'Cartão de Crédito',
     pix: 'PIX',
@@ -131,7 +148,7 @@ paymentSchema.methods.getPaymentMethodInPortuguese = function() {
 };
 
 // Método para formatar valor
-paymentSchema.methods.formatAmount = function() {
+paymentSchema.methods.formatAmount = function () {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: this.currency,
