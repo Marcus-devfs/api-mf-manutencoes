@@ -9,6 +9,7 @@ import notificationRoutes from './notifications';
 import pushNotificationRoutes from './pushNotification';
 import uploadRoutes from './upload';
 import reviewRoutes from './reviews';
+import addressRoutes from './addresses';
 
 const router = Router();
 
@@ -23,6 +24,7 @@ router.use('/notifications', notificationRoutes);
 router.use('/push-notifications', pushNotificationRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/reviews', reviewRoutes);
+router.use('/addresses', addressRoutes);
 
 // Rota de health check
 router.get('/health', (req, res) => {
