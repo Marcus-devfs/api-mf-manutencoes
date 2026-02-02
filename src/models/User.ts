@@ -60,10 +60,18 @@ const userSchema = new Schema<IUser>({
     type: Date,
     default: null,
   },
+  asaasCustomerId: {
+    type: String,
+    default: null,
+  },
+  asaasAccountId: {
+    type: String,
+    default: null,
+  },
 }, {
   timestamps: true,
   toJSON: {
-    transform: function(doc, ret: any) {
+    transform: function (doc, ret: any) {
       delete ret.password;
       delete ret.verificationToken;
       delete ret.resetPasswordToken;
@@ -79,9 +87,9 @@ userSchema.index({ role: 1 });
 userSchema.index({ isActive: 1 });
 
 // Middleware para hash da senha antes de salvar
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  
+
   try {
     const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
@@ -92,9 +100,9 @@ userSchema.pre('save', async function(next) {
 });
 
 // Middleware para hash da senha antes de atualizar
-userSchema.pre('findOneAndUpdate', async function(next) {
+userSchema.pre('findOneAndUpdate', async function (next) {
   const update = this.getUpdate() as any;
-  
+
   if (update && update.password) {
     try {
       const salt = await bcrypt.genSalt(12);
@@ -103,23 +111,23 @@ userSchema.pre('findOneAndUpdate', async function(next) {
       next(error as Error);
     }
   }
-  
+
   next();
 });
 
 // Método para comparar senhas
-userSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
+userSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.password);
 };
 
 // Método para gerar token de verificação
-userSchema.methods.generateVerificationToken = function(): string {
+userSchema.methods.generateVerificationToken = function (): string {
   const crypto = require('crypto');
   return crypto.randomBytes(32).toString('hex');
 };
 
 // Método para gerar token de reset de senha
-userSchema.methods.generateResetToken = function(): string {
+userSchema.methods.generateResetToken = function (): string {
   const crypto = require('crypto');
   this.resetPasswordToken = crypto.randomBytes(32).toString('hex');
   this.resetPasswordExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
@@ -127,12 +135,12 @@ userSchema.methods.generateResetToken = function(): string {
 };
 
 // Virtual para nome completo
-userSchema.virtual('fullName').get(function() {
+userSchema.virtual('fullName').get(function () {
   return this.name;
 });
 
 // Virtual para URL do avatar
-userSchema.virtual('avatarUrl').get(function() {
+userSchema.virtual('avatarUrl').get(function () {
   if (this.avatar) {
     return this.avatar.startsWith('http') ? this.avatar : `${process.env.CLOUDINARY_BASE_URL}/${this.avatar}`;
   }

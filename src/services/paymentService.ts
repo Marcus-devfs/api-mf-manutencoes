@@ -1,4 +1,5 @@
 import { Payment, Quote, User } from '../models';
+import { AsaasService } from './asaasService';
 import { IPayment, IQuote } from '../types';
 import { createError, notFound, badRequest, forbidden } from '../middlewares/errorHandler';
 import { config } from '../config/config';
@@ -72,7 +73,7 @@ export class PaymentService {
     }
   }
 
-  // Processar pagamento PIX
+  // Processar pagamento PIX (Integrado com Asaas)
   static async processPixPayment(quoteId: string, clientId: string): Promise<{
     payment: IPayment;
     pixCode: string;
@@ -92,16 +93,22 @@ export class PaymentService {
         throw badRequest('Apenas orçamentos aceitos podem ser pagos');
       }
 
-      if (quote.paymentStatus === 'paid') {
-        throw badRequest('Orçamento já foi pago');
-      }
+      // 1. Criar/Buscar Cliente no Asaas (Pagador)
+      const asaasCustomerId = await AsaasService.createCustomer(clientId);
 
-      // Aqui você integraria com um provedor PIX
-      // Por enquanto, vamos simular
-      const pixCode = this.generatePixCode(quote.totalPrice);
-      const qrCode = this.generateQRCode(pixCode);
+      // 2. Criar/Buscar Conta do Profissional no Asaas (Recebedor Split)
+      const asaasProfessionalId = await AsaasService.createProfessionalAccount(quote.professionalId);
 
-      // Criar registro de pagamento
+      // 3. Criar Cobrança com Split
+      const asaasPayment = await AsaasService.createPayment(
+        asaasCustomerId,
+        quote.totalPrice,
+        asaasProfessionalId,
+        `Pagamento Orçamento #${quote._id}`,
+        quote._id.toString()
+      );
+
+      // 4. Salvar no Banco
       const payment = new Payment({
         quoteId: quote._id,
         clientId: clientId,
@@ -110,14 +117,15 @@ export class PaymentService {
         currency: 'BRL',
         status: 'pending',
         paymentMethod: 'pix',
+        transactionId: asaasPayment.id, // ID do Asaas
       });
 
       await payment.save();
 
       return {
         payment,
-        pixCode,
-        qrCode
+        pixCode: asaasPayment.pixQrCodeId || 'fluxo_sandbox_simulado', // Em sandbox pode não vir
+        qrCode: asaasPayment.encodedImage || 'fluxo_sandbox_simulado'
       };
     } catch (error) {
       throw error;
