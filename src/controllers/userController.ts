@@ -65,20 +65,25 @@ export class UserController {
   // Validações para perfil profissional
   static professionalProfileValidation = [
     body('bio')
+      .optional()
       .trim()
       .isLength({ min: 50, max: 500 })
       .withMessage('Biografia deve ter entre 50 e 500 caracteres'),
     body('specialties')
+      .optional()
       .isArray({ min: 1 })
       .withMessage('Especialidades são obrigatórias'),
     body('specialties.*')
+      .optional()
       .trim()
       .isLength({ min: 2, max: 50 })
       .withMessage('Cada especialidade deve ter entre 2 e 50 caracteres'),
     body('experience')
+      .optional()
       .isInt({ min: 0, max: 50 })
       .withMessage('Experiência deve ser entre 0 e 50 anos'),
     body('serviceRadius')
+      .optional()
       .isInt({ min: 1, max: 100 })
       .withMessage('Raio de atendimento deve ser entre 1 e 100 km'),
   ];
