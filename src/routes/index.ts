@@ -10,6 +10,7 @@ import pushNotificationRoutes from './pushNotification';
 import uploadRoutes from './upload';
 import reviewRoutes from './reviews';
 import addressRoutes from './addresses';
+import paymentMethodRoutes from './paymentMethods';
 
 const router = Router();
 
@@ -20,6 +21,7 @@ router.use('/services', serviceRoutes);
 router.use('/quotes', quoteRoutes);
 router.use('/chat', chatRoutes);
 router.use('/payments', paymentRoutes);
+router.use('/payment-methods', paymentMethodRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/push-notifications', pushNotificationRoutes);
 router.use('/upload', uploadRoutes);
