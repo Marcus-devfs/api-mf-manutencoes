@@ -256,6 +256,23 @@ export class PaymentController {
     });
   });
 
+  // Obter dados do dashboard de ganhos
+  static getEarnings = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const userId = (req as any).user._id;
+    const { period } = req.query;
+
+    const earnings = await PaymentService.getEarnings(
+      userId,
+      (period as 'week' | 'month' | 'year') || 'month'
+    );
+
+    res.json({
+      success: true,
+      message: 'Ganhos obtidos com sucesso',
+      data: earnings,
+    });
+  });
+
   // Webhook do Stripe (para confirmar pagamentos)
   static stripeWebhook = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const sig = req.headers['stripe-signature'] as string;

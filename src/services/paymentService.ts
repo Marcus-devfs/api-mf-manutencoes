@@ -313,7 +313,7 @@ export class PaymentService {
   static async getPaymentById(paymentId: string, userId: string, userRole: string): Promise<IPayment> {
     try {
       const filter = userRole === 'client' ? { _id: paymentId, clientId: userId } : { _id: paymentId, professionalId: userId };
-      
+
       const payment = await Payment.findOne(filter)
         .populate('quoteId', 'title totalPrice status')
         .populate('clientId', 'name email')
@@ -333,7 +333,7 @@ export class PaymentService {
   static async processRefund(paymentId: string, reason: string, userId: string, userRole: string): Promise<IPayment> {
     try {
       const filter = userRole === 'client' ? { _id: paymentId, clientId: userId } : { _id: paymentId, professionalId: userId };
-      
+
       const payment = await Payment.findOne(filter);
       if (!payment) {
         throw notFound('Pagamento não encontrado');
@@ -346,7 +346,7 @@ export class PaymentService {
       // Aqui você integraria com o Stripe para processar o reembolso
       if (payment.stripePaymentIntentId) {
         const stripe = require('stripe')(config.stripe.secretKey);
-        
+
         await stripe.refunds.create({
           payment_intent: payment.stripePaymentIntentId,
           reason: 'requested_by_customer',
@@ -378,9 +378,9 @@ export class PaymentService {
   }> {
     try {
       const filter = userRole === 'client' ? { clientId: userId } : { professionalId: userId };
-      
+
       const payments = await Payment.find(filter);
-      
+
       const stats = {
         totalPayments: payments.length,
         totalAmount: payments.reduce((sum, p) => sum + p.amount, 0),
@@ -388,12 +388,78 @@ export class PaymentService {
         completedPayments: payments.filter(p => p.status === 'completed').length,
         failedPayments: payments.filter(p => p.status === 'failed').length,
         refundedPayments: payments.filter(p => p.status === 'refunded').length,
-        averagePaymentValue: payments.length > 0 
-          ? payments.reduce((sum, p) => sum + p.amount, 0) / payments.length 
+        averagePaymentValue: payments.length > 0
+          ? payments.reduce((sum, p) => sum + p.amount, 0) / payments.length
           : 0
       };
 
       return stats;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Obter ganhos (com cálculo de taxas)
+  static async getEarnings(userId: string, period: 'week' | 'month' | 'year' = 'month'): Promise<{
+    grossTotal: number;
+    fee: number;
+    netTotal: number;
+    completedCount: number;
+    pendingCount: number;
+    averageTicket: number;
+    recentPayments: any[];
+  }> {
+    try {
+      const now = new Date();
+      let startDate = new Date();
+
+      if (period === 'week') {
+        startDate.setDate(now.getDate() - 7);
+      } else if (period === 'month') {
+        startDate.setMonth(now.getMonth() - 1);
+      } else if (period === 'year') {
+        startDate.setFullYear(now.getFullYear() - 1);
+      }
+
+      const filter: any = {
+        professionalId: userId,
+        createdAt: { $gte: startDate }
+      };
+
+      const payments = await Payment.find(filter)
+        .populate('quoteId', 'title')
+        .populate('clientId', 'name');
+
+      const completedPayments = payments.filter(p => p.status === 'completed');
+      const pendingPayments = payments.filter(p => p.status === 'pending');
+
+      const grossTotal = completedPayments.reduce((sum, p) => sum + p.amount, 0);
+      const feePercentage = 0.10; // 10% de taxa da plataforma
+      const fee = grossTotal * feePercentage;
+      const netTotal = grossTotal - fee;
+
+      const recentPayments = await Payment.find({ professionalId: userId })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .populate('quoteId', 'title')
+        .populate('clientId', 'name');
+
+      return {
+        grossTotal,
+        fee,
+        netTotal,
+        completedCount: completedPayments.length,
+        pendingCount: pendingPayments.length,
+        averageTicket: completedPayments.length > 0 ? grossTotal / completedPayments.length : 0,
+        recentPayments: recentPayments.map(p => ({
+          id: p._id,
+          service: (p.quoteId as any)?.title || 'Serviço',
+          client: (p.clientId as any)?.name || 'Cliente',
+          amount: p.amount,
+          date: p.createdAt,
+          status: p.status
+        }))
+      };
     } catch (error) {
       throw error;
     }
