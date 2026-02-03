@@ -206,15 +206,17 @@ export class UserService {
   // Atualizar perfil profissional
   static async updateProfessionalProfile(userId: string, updateData: Partial<IProfessionalProfile>): Promise<IProfessionalProfile> {
     try {
+      // Usar upsert para criar se não existir (necessário setDefaultsOnInsert para aplicar defaults do schema)
       const profile = await ProfessionalProfile.findOneAndUpdate(
         { userId },
         updateData,
-        { new: true, runValidators: true }
+        {
+          new: true,
+          upsert: true,
+          runValidators: true,
+          setDefaultsOnInsert: true
+        }
       );
-
-      if (!profile) {
-        throw notFound('Perfil profissional não encontrado');
-      }
 
       return profile;
     } catch (error) {

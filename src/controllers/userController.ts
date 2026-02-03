@@ -212,7 +212,7 @@ export class UserController {
 
   // Buscar perfil profissional
   static getProfessionalProfile = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const { userId } = req.params;
+    const userId = (req as any).user._id;
 
     const profile = await UserService.getProfessionalProfile(userId);
 
