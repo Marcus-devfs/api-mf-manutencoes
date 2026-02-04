@@ -79,6 +79,20 @@ export class AsaasService {
         }
     }
 
+    // Atualizar dados do Cliente no Asaas
+    static async updateCustomer(asaasCustomerId: string, data: Partial<IAsaasCustomer>): Promise<any> {
+        try {
+            const { data: updatedCustomer } = await this.api.put(`/customers/${asaasCustomerId}`, data);
+            return updatedCustomer;
+        } catch (error: any) {
+            console.error('Erro ao atualizar cliente Asaas:', error.response?.data || error.message);
+            // Logar mas não falhar hard se for update opcional, ou falhar se for crítico?
+            // Neste caso, se falhar o update do CPF, o pagamento vai falhar depois, então ok lançar ou deixar passar.
+            // Vamos lançar para saber o motivo.
+            throw new Error('Falha ao atualizar dados do cliente no Asaas');
+        }
+    }
+
     // Criar Conta do Profissional (Subconta para Split)
     static async createProfessionalAccount(userId: string, config?: { mobilePhone?: string, incomeValue?: number }): Promise<string> {
         try {

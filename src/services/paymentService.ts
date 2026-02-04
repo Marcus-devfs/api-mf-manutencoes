@@ -40,6 +40,17 @@ export class PaymentService {
 
       // 1. Criar/Buscar Cliente e Profissional no Asaas
       const asaasCustomerId = await AsaasService.createCustomer(clientId);
+
+      // Atualizar CPF do cliente no Asaas caso tenha sido fornecido nos dados do cartão
+      if (holderInfo.cpfCnpj) {
+        const cpfCnpjClean = holderInfo.cpfCnpj.replace(/\D/g, '');
+        await AsaasService.updateCustomer(asaasCustomerId, {
+          cpfCnpj: cpfCnpjClean,
+          name: holderInfo.name,
+          mobilePhone: holderInfo.phone?.replace(/\D/g, '') || undefined
+        });
+      }
+
       const asaasProfessionalId = await AsaasService.createProfessionalAccount(quote.professionalId);
 
       // 2. Processar Pagamento via Asaas
@@ -127,6 +138,14 @@ export class PaymentService {
       // 1. Criar/Buscar Cliente no Asaas (Pagador)
       // O createCustomer agora usa o user.cpfCnpj atualizado
       const asaasCustomerId = await AsaasService.createCustomer(clientId);
+
+      // Atualizar CPF do cliente no Asaas caso tenha sido fornecido agora
+      if (payerInfo?.cpfCnpj) {
+        const cpfCnpjClean = payerInfo.cpfCnpj.replace(/\D/g, '');
+        await AsaasService.updateCustomer(asaasCustomerId, {
+          cpfCnpj: cpfCnpjClean
+        });
+      }
 
       // 2. Criar/Buscar Conta do Profissional no Asaas (Recebedor Split)
       const asaasProfessionalId = await AsaasService.createProfessionalAccount(quote.professionalId);
