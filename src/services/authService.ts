@@ -1,10 +1,14 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { User } from '../models';
+import { Address, User } from '../models';
 import { config } from '../config/config';
 import { createError, badRequest, unauthorized, conflict } from '../middlewares/errorHandler';
 import { IUser } from '../types';
 import { PushNotificationService } from './pushNotificationService';
+import { AsaasService } from './asaasService';
+import { AddressService } from './addressService';
+import { ProfessionalProfileService } from './professionalProfileService';
+
 
 export class AuthService {
   // Registrar novo usuário
@@ -14,6 +18,8 @@ export class AuthService {
     password: string;
     phone: string;
     role: 'client' | 'professional';
+    specialties?: string[];
+    serviceRadius?: number;
   }): Promise<{ user: IUser; tokens: { accessToken: string; refreshToken: string } }> {
     try {
       // Verificar se email já existe
@@ -24,11 +30,30 @@ export class AuthService {
 
       // Criar usuário
       const user = new User({
-        ...userData,
+        name: userData.name,
+        email: userData.email,
+        password: userData.password,
+        phone: userData.phone,
+        role: userData.role,
         verificationToken: this.generateVerificationToken(),
       });
 
       await user.save();
+
+      // Se for profissional e tiver dados extras, criar perfil profissional
+      if (userData.role === 'professional') {
+        if (userData.specialties || userData.serviceRadius) {
+          await ProfessionalProfileService.createProfile(user._id, {
+            specialties: userData.specialties || [],
+            serviceRadius: userData.serviceRadius || 30,
+          });
+        }
+        // Nota: A criação da conta Asaas agora é feita em uma etapa separada (completeFinancialProfile)
+      }
+
+      // 4. Criar Customer no Asaas (Para todos os usuários: Clientes e Profissionais)
+      // Isso garante que o usuário exista como "Pagador" no sistema financeiro
+      await AsaasService.createCustomer(user._id);
 
       // Gerar tokens
       const tokens = this.generateTokens(user);
@@ -47,7 +72,7 @@ export class AuthService {
     try {
       // Buscar usuário com senha
       const user = await User.findOne({ email }).select('+password');
-      
+
       if (!user) {
         throw unauthorized('Credenciais inválidas');
       }
@@ -86,7 +111,7 @@ export class AuthService {
   static async refreshToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
     try {
       const decoded = jwt.verify(refreshToken, config.jwtRefreshSecret) as any;
-      
+
       const user = await User.findById(decoded.userId);
       if (!user || !user.isActive) {
         throw unauthorized('Token inválido');
@@ -105,7 +130,7 @@ export class AuthService {
   static async verifyEmail(token: string): Promise<IUser> {
     try {
       const user = await User.findOne({ verificationToken: token });
-      
+
       if (!user) {
         throw badRequest('Token de verificação inválido');
       }
@@ -124,7 +149,7 @@ export class AuthService {
   static async requestPasswordReset(email: string): Promise<{ message: string; resetToken: string }> {
     try {
       const user = await User.findOne({ email });
-      
+
       if (!user) {
         // Por segurança, não revelar se o email existe ou não
         return {
@@ -175,7 +200,7 @@ export class AuthService {
   static async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<IUser> {
     try {
       const user = await User.findById(userId).select('+password');
-      
+
       if (!user) {
         throw badRequest('Usuário não encontrado');
       }

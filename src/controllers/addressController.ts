@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { Address } from '../models/Address';
+import { AddressService } from '../services/addressService';
 import { asyncHandler, notFound, badRequest } from '../middlewares';
 
 export class AddressController {
@@ -10,7 +10,7 @@ export class AddressController {
     static list = asyncHandler(async (req: Request, res: Response) => {
         const userId = (req as any).user._id;
 
-        const addresses = await Address.find({ userId }).sort({ isDefault: -1, createdAt: -1 });
+        const addresses = await AddressService.getUserAddresses(userId);
 
         res.json({
             success: true,
@@ -25,13 +25,7 @@ export class AddressController {
         const userId = (req as any).user._id;
         const { title, street, number, complement, neighborhood, city, state, zipCode, isDefault, coordinates } = req.body;
 
-        // Se for definir como padrão, o middleware do model já cuida de desmarcar os outros
-        // Mas se for o primeiro endereço, forçamos ser padrão
-        const count = await Address.countDocuments({ userId });
-        const shouldBeDefault = count === 0 ? true : isDefault;
-
-        const address = await Address.create({
-            userId,
+        const address = await AddressService.createAddress(userId, {
             title,
             street,
             number,
@@ -40,7 +34,7 @@ export class AddressController {
             city,
             state,
             zipCode,
-            isDefault: shouldBeDefault,
+            isDefault,
             coordinates
         });
 
@@ -61,26 +55,7 @@ export class AddressController {
         // Não permitir atualizar userId via body
         delete updateData.userId;
 
-        const address = await Address.findOne({ _id: id, userId });
-
-        if (!address) {
-            throw notFound('Endereço não encontrado');
-        }
-
-        // Se estiver atualizando isDefault para true, precisamos desmarcar os outros
-        // O middleware pre-save só roda em .save() ou .create(), não em findOneAndUpdate
-        // Então vamos usar o save() do document
-        Object.assign(address, updateData);
-
-        // Manualmente garantir unicidade se isDefault for true (caso o middleware tenha issues ou pra garantir)
-        if (updateData.isDefault) {
-            await Address.updateMany(
-                { userId, _id: { $ne: id } },
-                { $set: { isDefault: false } }
-            );
-        }
-
-        await address.save();
+        const address = await AddressService.updateAddress(id, userId, updateData);
 
         res.json({
             success: true,
@@ -95,11 +70,7 @@ export class AddressController {
         const { id } = req.params;
         const userId = (req as any).user._id;
 
-        const address = await Address.findOneAndDelete({ _id: id, userId });
-
-        if (!address) {
-            throw notFound('Endereço não encontrado');
-        }
+        await AddressService.deleteAddress(id, userId);
 
         res.json({
             success: true,
@@ -114,21 +85,7 @@ export class AddressController {
         const { id } = req.params;
         const userId = (req as any).user._id;
 
-        const address = await Address.findOne({ _id: id, userId });
-
-        if (!address) {
-            throw notFound('Endereço não encontrado');
-        }
-
-        // Desmarcar todos os outros
-        await Address.updateMany(
-            { userId, _id: { $ne: id } },
-            { $set: { isDefault: false } }
-        );
-
-        // Marcar este
-        address.isDefault = true;
-        await address.save();
+        const address = await AddressService.setDefaultAddress(id, userId);
 
         res.json({
             success: true,

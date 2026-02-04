@@ -74,6 +74,11 @@ router.put('/professional-profile',
   UserController.updateProfessionalProfile
 );
 
+router.post('/financial-profile',
+  requireProfessional,
+  UserController.completeFinancialProfile
+);
+
 // Rotas para buscar profissionais
 router.get('/professionals/nearby',
   UserController.getNearbyProfessionals

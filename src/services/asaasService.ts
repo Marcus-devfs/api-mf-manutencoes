@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { User } from '../models';
+import { AddressService } from './addressService';
 import { config } from '../config/config';
 
 // Definição das interfaces do Asaas (Simplificadas)
@@ -56,10 +57,12 @@ export class AsaasService {
             }
 
             // Criar novo cliente
+            const mobilePhoneClean = user.phone ? user.phone.replace(/\D/g, '') : '99999999999';
+
             const customerData: IAsaasCustomer = {
                 name: user.name,
                 email: user.email,
-                mobilePhone: user.phone || '99999999999', // Fallback se não tiver
+                mobilePhone: mobilePhoneClean,
                 externalReference: user._id.toString()
             };
 
@@ -75,7 +78,7 @@ export class AsaasService {
     }
 
     // Criar Conta do Profissional (Subconta para Split)
-    static async createProfessionalAccount(userId: string): Promise<string> {
+    static async createProfessionalAccount(userId: string, config?: { mobilePhone?: string, incomeValue?: number }): Promise<string> {
         try {
             const user = await User.findById(userId);
             if (!user) throw new Error('Usuário não encontrado');
@@ -84,17 +87,35 @@ export class AsaasService {
                 return user.asaasAccountId;
             }
 
+            const addresses = await AddressService.getUserAddresses(userId);
+            const address = addresses.find(a => a.isDefault) || addresses[0];
+
+            if (!user.cpfCnpj || !user.birthDate) {
+                console.warn('⚠️ Dados obrigatórios para conta profissional ausentes: cpfCnpj ou birthDate');
+                // Em produção, isso deve impedir a criação ou solicitar atualização
+            }
+
+            const birthDateISO = user.birthDate ? new Date(user.birthDate).toISOString().split('T')[0] : '';
+            const cpfCnpjClean = user.cpfCnpj ? user.cpfCnpj.replace(/\D/g, '') : '00000000000';
+            // Usa o da config se fornecido, senão do user, ou fallback
+            const mobilePhoneClean = config?.mobilePhone
+                ? config.mobilePhone.replace(/\D/g, '')
+                : (user.phone ? user.phone.replace(/\D/g, '') : '99999999999');
+
             const accountData = {
                 name: user.name,
                 email: user.email,
-                cpfCnpj: '00000000000', // Em produção, precisa vir do cadastro do user
-                mobilePhone: user.phone || '99999999999',
-                incomeValue: 0,
-                address: 'Rua Teste',
-                addressNumber: '123',
-                province: 'Bairro',
-                postalCode: '00000-000'
+                cpfCnpj: cpfCnpjClean,
+                birthDate: birthDateISO,
+                mobilePhone: mobilePhoneClean,
+                incomeValue: config?.incomeValue || 0, // Agora usa o valor real ou 0
+                address: address ? address.street : 'Rua Não Informada',
+                addressNumber: address ? address.number : '000',
+                province: address ? address.neighborhood : 'Bairro Não Informado',
+                postalCode: address ? address.zipCode.replace(/\D/g, '') : '00000000'
             };
+
+            console.log('Account Data:', accountData);
 
             const { data: newAccount } = await this.api.post('/accounts', accountData);
             user.asaasAccountId = newAccount.id;

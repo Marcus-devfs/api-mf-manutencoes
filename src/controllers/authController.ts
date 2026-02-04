@@ -21,6 +21,16 @@ export class AuthController {
     body('role')
       .isIn(['client', 'professional'])
       .withMessage('Role deve ser "client" ou "professional"'),
+    body('cpfCnpj')
+      .optional()
+      .trim()
+      .isLength({ min: 11, max: 14 })
+      .withMessage('CPF/CNPJ inválido'),
+    body('birthDate')
+      .optional()
+      .isISO8601()
+      .toDate()
+      .withMessage('Data de nascimento inválida'),
   ];
 
   // Validações para login
@@ -68,7 +78,7 @@ export class AuthController {
 
   // Registrar usuário
   static register = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const { name, email, password, phone, role } = req.body;
+    const { name, email, password, phone, role, specialties, serviceRadius } = req.body;
 
     const result = await AuthService.register({
       name,
@@ -76,6 +86,8 @@ export class AuthController {
       password,
       phone,
       role,
+      specialties,
+      serviceRadius
     });
 
     res.status(201).json({

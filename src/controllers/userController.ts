@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { body, param } from 'express-validator';
 import { UserService } from '../services/userService';
+import { ProfessionalProfileService } from '../services/professionalProfileService';
+import { AddressService } from '../services/addressService';
 import { asyncHandler, notFound, badRequest } from '../middlewares/errorHandler';
 import { handleValidationErrors } from '../middlewares/validation';
 
@@ -145,7 +147,7 @@ export class UserController {
   static getUserAddresses = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const userId = (req as any).user._id;
 
-    const addresses = await UserService.getUserAddresses(userId);
+    const addresses = await AddressService.getUserAddresses(userId);
 
     res.json({
       success: true,
@@ -159,7 +161,7 @@ export class UserController {
     const userId = (req as any).user._id;
     const addressData = req.body;
 
-    const address = await UserService.addAddress(userId, addressData);
+    const address = await AddressService.createAddress(userId, addressData);
 
     res.status(201).json({
       success: true,
@@ -174,7 +176,7 @@ export class UserController {
     const userId = (req as any).user._id;
     const updateData = req.body;
 
-    const address = await UserService.updateAddress(addressId, userId, updateData);
+    const address = await AddressService.updateAddress(addressId, userId, updateData);
 
     res.json({
       success: true,
@@ -188,7 +190,7 @@ export class UserController {
     const { addressId } = req.params;
     const userId = (req as any).user._id;
 
-    await UserService.removeAddress(addressId, userId);
+    await AddressService.deleteAddress(addressId, userId);
 
     res.json({
       success: true,
@@ -201,7 +203,7 @@ export class UserController {
     const { addressId } = req.params;
     const userId = (req as any).user._id;
 
-    const address = await UserService.setDefaultAddress(addressId, userId);
+    const address = await AddressService.setDefaultAddress(addressId, userId);
 
     res.json({
       success: true,
@@ -214,7 +216,7 @@ export class UserController {
   static getProfessionalProfile = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const userId = (req as any).user._id;
 
-    const profile = await UserService.getProfessionalProfile(userId);
+    const profile = await ProfessionalProfileService.getProfile(userId);
 
     res.json({
       success: true,
@@ -228,7 +230,7 @@ export class UserController {
     const userId = (req as any).user._id;
     const profileData = req.body;
 
-    const profile = await UserService.createProfessionalProfile(userId, profileData);
+    const profile = await ProfessionalProfileService.createProfile(userId, profileData);
 
     res.status(201).json({
       success: true,
@@ -242,7 +244,7 @@ export class UserController {
     const userId = (req as any).user._id;
     const updateData = req.body;
 
-    const profile = await UserService.updateProfessionalProfile(userId, updateData);
+    const profile = await ProfessionalProfileService.updateProfile(userId, updateData);
 
     res.json({
       success: true,
@@ -259,7 +261,7 @@ export class UserController {
       throw badRequest('Latitude e longitude são obrigatórias');
     }
 
-    const professionals = await UserService.getNearbyProfessionals(
+    const professionals = await ProfessionalProfileService.findNearby(
       parseFloat(lat as string),
       parseFloat(lng as string),
       radius ? parseFloat(radius as string) : 10
@@ -276,7 +278,7 @@ export class UserController {
   static getProfessionalsBySpecialty = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const { specialty } = req.params;
 
-    const professionals = await UserService.getProfessionalsBySpecialty(specialty);
+    const professionals = await ProfessionalProfileService.findBySpecialty(specialty);
 
     res.json({
       success: true,
@@ -294,7 +296,7 @@ export class UserController {
       throw badRequest('Avaliação deve estar entre 1 e 5');
     }
 
-    const profile = await UserService.rateProfessional(professionalId, rating, comment);
+    const profile = await ProfessionalProfileService.rateProfessional(professionalId, rating, comment);
 
     res.json({
       success: true,
@@ -388,5 +390,41 @@ export class UserController {
       data: statusData
     });
   });
-}
 
+  // Completar perfil financeiro (CPF/CNPJ e Data de Nascimento) e criar conta Asaas
+  static completeFinancialProfile = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const userId = (req as any).user._id;
+
+    // Extraindo todos os campos necessários do body
+    const { cpfCnpj, birthDate, mobilePhone, incomeValue, address } = req.body;
+
+    // Validação básica
+    if (!cpfCnpj || !mobilePhone || !incomeValue) {
+      throw badRequest('Dados obrigatórios faltando (CPF/CNPJ, Celular, Renda)');
+    }
+
+    try {
+      // Delegar para UserService
+      const result = await UserService.completeFinancialProfile(userId, {
+        cpfCnpj,
+        birthDate,
+        mobilePhone,
+        incomeValue,
+        address // Pode ser undefined
+      });
+
+      res.json({
+        success: true,
+        message: 'Perfil financeiro atualizado e conta Asaas criada com sucesso',
+        data: result
+      });
+    } catch (error: any) {
+      console.error('Erro ao completar perfil financeiro:', error);
+      res.status(400).json({
+        success: false,
+        message: 'Erro ao criar conta financeira: ' + error.message,
+        error: error.message
+      });
+    }
+  });
+}

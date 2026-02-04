@@ -15,6 +15,8 @@ export interface IUser extends Document {
   verificationToken?: string;
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
+  cpfCnpj?: string;
+  birthDate?: Date;
   // Asaas fields
   asaasCustomerId?: string;
   asaasAccountId?: string;

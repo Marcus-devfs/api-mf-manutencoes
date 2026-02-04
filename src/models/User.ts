@@ -60,6 +60,15 @@ const userSchema = new Schema<IUser>({
     type: Date,
     default: null,
   },
+  cpfCnpj: {
+    type: String,
+    trim: true,
+    default: null,
+  },
+  birthDate: {
+    type: Date,
+    default: null,
+  },
   asaasCustomerId: {
     type: String,
     default: null,
