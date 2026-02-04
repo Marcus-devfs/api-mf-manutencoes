@@ -138,4 +138,39 @@ export class UserService {
       throw error;
     }
   }
+  // Verificar status da conta de pagamentos
+  static async getPaymentAccountStatus(userId: string): Promise<any> {
+    try {
+      const user = await User.findById(userId);
+      if (!user) throw notFound('Usuário não encontrado');
+
+
+      if (!user.asaasAccountId) {
+        return { status: 'NOT_EXISTENT', message: 'Conta de recebimento não existe.' };
+      }
+
+      // Se já tem ID, busca status real e dados
+      const statusData = await AsaasService.getAccountStatus(user.asaasAccountId);
+
+      // Buscar endereço padrão
+      const defaultAddress = await AddressService.getUserAddressDefault(userId);
+
+      return {
+        ...statusData,
+        id: user.asaasAccountId,
+        cpfCnpj: user.cpfCnpj,
+        billingAddress: defaultAddress ? {
+          street: defaultAddress.street,
+          number: defaultAddress.number,
+          neighborhood: defaultAddress.neighborhood,
+          city: defaultAddress.city,
+          state: defaultAddress.state,
+          zipCode: defaultAddress.zipCode
+        } : null
+      };
+
+    } catch (error) {
+      throw error;
+    }
+  }
 }

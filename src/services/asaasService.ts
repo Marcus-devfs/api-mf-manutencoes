@@ -181,19 +181,22 @@ export class AsaasService {
 
     // Verificar Status da Conta do Profissional
     static async getAccountStatus(accountId: string): Promise<{
+        accountData: any;
         status: string;
         rejectionReason?: string;
     }> {
         try {
-            const { data } = await this.api.get(`/accounts/${accountId}`);
+            const response = await this.api.get(`/accounts/${accountId}`);
+            const data = response.data;
+
             return {
-                status: data.status, // AWAITING_APPROVAL, APPROVED, REJECTED
-                rejectionReason: data.denialReason
+                accountData: data,
+                status: data.status || 'PENDING', // AWAITING_APPROVAL, APPROVED, REJECTED
             };
         } catch (error: any) {
             console.error('Erro ao buscar status da conta:', error.response?.data || error.message);
             // Se não encontrado ou erro
-            return { status: 'PENDING' };
+            return { accountData: null, status: 'PENDING' };
         }
     }
 
