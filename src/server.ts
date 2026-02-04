@@ -57,6 +57,9 @@ class Server {
 
     // Trust proxy (para rate limiting funcionar corretamente)
     this.app.set('trust proxy', 1);
+
+    // Servir arquivos estáticos (uploads)
+    this.app.use('/uploads', express.static('uploads'));
   }
 
   private initializeRoutes(): void {

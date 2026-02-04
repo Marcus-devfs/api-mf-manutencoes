@@ -30,7 +30,8 @@ const serviceSchema = new Schema<IService>({
     type: String,
     validate: {
       validator: function (v: string) {
-        return /^https?:\/\/.+\.(jpg|jpeg|png|webp)$/i.test(v);
+        // Aceita URLs http/https ou caminhos locais começando com /
+        return /^(https?:\/\/.+|^\/).+\.(jpg|jpeg|png|webp|heic|heif)$/i.test(v);
       },
       message: 'URL da imagem inválida',
     },
