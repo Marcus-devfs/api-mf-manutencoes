@@ -135,16 +135,31 @@ export class PaymentService {
         }
       }
 
+      console.log('CPF do usuário:', payerInfo?.cpfCnpj);
+
       // 1. Criar/Buscar Cliente no Asaas (Pagador)
       // O createCustomer agora usa o user.cpfCnpj atualizado
       const asaasCustomerId = await AsaasService.createCustomer(clientId);
 
       // Atualizar CPF do cliente no Asaas caso tenha sido fornecido agora
       if (payerInfo?.cpfCnpj) {
+        console.log('--- Iniciando Atualização de CPF no Asaas ---');
+        console.log('Customer ID:', asaasCustomerId);
         const cpfCnpjClean = payerInfo.cpfCnpj.replace(/\D/g, '');
-        await AsaasService.updateCustomer(asaasCustomerId, {
-          cpfCnpj: cpfCnpjClean
-        });
+        console.log('CPF Enviado:', cpfCnpjClean);
+
+        try {
+          const updateResult = await AsaasService.updateCustomer(asaasCustomerId, {
+            cpfCnpj: cpfCnpjClean
+          });
+          console.log('Update Asaas Resultado:', updateResult ? 'Sucesso' : 'Sem retorno');
+
+          // Aguardar 1 segundo para propagação no Asaas (Sandbox as vezes tem delay)
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (err) {
+          console.error('ERRO AO ATUALIZAR CUSTOMER ASAAS:', err);
+        }
+        console.log('--- Fim Atualização Asaas ---');
       }
 
       // 2. Criar/Buscar Conta do Profissional no Asaas (Recebedor Split)

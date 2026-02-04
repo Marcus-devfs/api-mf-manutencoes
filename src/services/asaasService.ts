@@ -82,8 +82,9 @@ export class AsaasService {
     // Atualizar dados do Cliente no Asaas
     static async updateCustomer(asaasCustomerId: string, data: Partial<IAsaasCustomer>): Promise<any> {
         try {
-            const { data: updatedCustomer } = await this.api.put(`/customers/${asaasCustomerId}`, data);
-            return updatedCustomer;
+            const response = await this.api.put(`/customers/${asaasCustomerId}`, data);
+            console.log('Cliente atualizado no Asaas:', response.data);
+            return response.data;
         } catch (error: any) {
             console.error('Erro ao atualizar cliente Asaas:', error.response?.data || error.message);
             // Logar mas não falhar hard se for update opcional, ou falhar se for crítico?
@@ -100,7 +101,21 @@ export class AsaasService {
             if (!user) throw new Error('Usuário não encontrado');
 
             if (user.asaasAccountId) {
-                return user.asaasAccountId;
+                // Validar se a conta ainda existe no Asaas e Obter o WalletId correto
+                try {
+                    const { data: accountData } = await this.api.get(`/accounts/${user.asaasAccountId}`);
+                    // O Asaas exige o walletId para o Split
+                    console.log(`Conta Asaas existente encontrada. Subconta: ${accountData.id}, Wallet: ${accountData.walletId}`);
+                    return accountData.walletId || accountData.id;
+                } catch (err: any) {
+                    // Se não encontrado (404) ou erro de wallet inválida, logar e deixar prosseguir para recriação
+                    if (err.response?.status === 404 || err.response?.data?.errors?.some((e: any) => e.code === 'invalid_action')) {
+                        console.warn(`Conta Asaas ${user.asaasAccountId} inválida ou não encontrada no Sandbox. Ignorando ID antigo e recriando...`);
+                        // Não retorna, deixa cair no fluxo de criação abaixo
+                    } else {
+                        throw err;
+                    }
+                }
             }
 
             const addresses = await AddressService.getUserAddresses(userId);
@@ -137,7 +152,10 @@ export class AsaasService {
             user.asaasAccountId = newAccount.id;
             await user.save();
 
-            return newAccount.id;
+            // Retornar o WalletId se disponível, senão o ID (que pode ser da subconta)
+            // Para split, geralmente é o WalletId.
+            console.log('Nova conta Asaas criada:', newAccount.id, 'Wallet:', newAccount.walletId);
+            return newAccount.walletId || newAccount.id;
 
         } catch (error: any) {
             console.error('Erro ao criar conta profissional Asaas:', error.response?.data || error.message);
@@ -253,10 +271,6 @@ export class AsaasService {
                     {
                         walletId: professionalWalletId,
                         percentualValue: 90 // 90% para o profissional
-                    },
-                    {
-                        walletId: process.env.ASAAS_WALLET_ID || '', // 10% para a plataforma
-                        percentualValue: 10
                     }
                 ]
             };

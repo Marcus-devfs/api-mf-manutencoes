@@ -257,6 +257,12 @@ export class QuoteController {
       throw badRequest('Método de pagamento é obrigatório');
     }
 
+    console.log('paymentMethod', paymentMethod);
+    console.log('paymentId', paymentId);
+    console.log('transactionId', transactionId);
+    console.log('creditCard', creditCard);
+    console.log('creditCardHolderInfo', creditCardHolderInfo);
+
     const result = await QuoteService.processPayment(quoteId, {
       paymentMethod,
       paymentId,

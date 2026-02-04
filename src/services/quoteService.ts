@@ -366,6 +366,7 @@ export class QuoteService {
       } else if (paymentData.paymentMethod === 'pix') {
         const { PaymentService } = require('./paymentService');
 
+        console.log('paymentData do usuário:', paymentData);
         // Reutiliza creditCardHolderInfo como payerInfo se disponível
         const payerInfo = paymentData.creditCardHolderInfo;
         result = await PaymentService.processPixPayment(quoteId, quote.clientId.toString(), payerInfo);
