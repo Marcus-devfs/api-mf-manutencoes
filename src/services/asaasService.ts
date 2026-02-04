@@ -58,11 +58,13 @@ export class AsaasService {
 
             // Criar novo cliente
             const mobilePhoneClean = user.phone ? user.phone.replace(/\D/g, '') : '99999999999';
+            const cpfCnpjClean = user.cpfCnpj ? user.cpfCnpj.replace(/\D/g, '') : undefined;
 
             const customerData: IAsaasCustomer = {
                 name: user.name,
                 email: user.email,
                 mobilePhone: mobilePhoneClean,
+                cpfCnpj: cpfCnpjClean,
                 externalReference: user._id.toString()
             };
 

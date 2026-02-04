@@ -251,7 +251,7 @@ export class QuoteController {
   // Processar pagamento do orçamento
   static processPayment = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const { quoteId } = req.params;
-    const { paymentMethod, paymentId, transactionId } = req.body;
+    const { paymentMethod, paymentId, transactionId, creditCard, creditCardHolderInfo } = req.body;
 
     if (!paymentMethod) {
       throw badRequest('Método de pagamento é obrigatório');
@@ -261,6 +261,8 @@ export class QuoteController {
       paymentMethod,
       paymentId,
       transactionId,
+      creditCard,
+      creditCardHolderInfo,
     });
 
     res.json({

@@ -29,6 +29,15 @@ export class PaymentService {
       if (quote.status !== 'accepted') throw badRequest('Apenas orçamentos aceitos podem ser pagos');
       if (quote.paymentStatus === 'paid') throw badRequest('Orçamento já foi pago');
 
+      // Atualizar CPF do usuário se necessário (importante para Asaas)
+      if (holderInfo.cpfCnpj) {
+        const user = await User.findById(clientId);
+        if (user && !user.cpfCnpj) {
+          user.cpfCnpj = holderInfo.cpfCnpj;
+          await user.save();
+        }
+      }
+
       // 1. Criar/Buscar Cliente e Profissional no Asaas
       const asaasCustomerId = await AsaasService.createCustomer(clientId);
       const asaasProfessionalId = await AsaasService.createProfessionalAccount(quote.professionalId);
@@ -87,7 +96,7 @@ export class PaymentService {
   }
 
   // Processar pagamento PIX (Integrado com Asaas)
-  static async processPixPayment(quoteId: string, clientId: string): Promise<{
+  static async processPixPayment(quoteId: string, clientId: string, payerInfo?: { cpfCnpj?: string }): Promise<{
     payment: IPayment;
     pixCode: string;
     qrCode: string;
@@ -106,7 +115,17 @@ export class PaymentService {
         throw badRequest('Apenas orçamentos aceitos podem ser pagos');
       }
 
+      // Atualizar CPF do usuário se não existir e for fornecido
+      if (payerInfo?.cpfCnpj) {
+        const user = await User.findById(clientId);
+        if (user && !user.cpfCnpj) {
+          user.cpfCnpj = payerInfo.cpfCnpj;
+          await user.save();
+        }
+      }
+
       // 1. Criar/Buscar Cliente no Asaas (Pagador)
+      // O createCustomer agora usa o user.cpfCnpj atualizado
       const asaasCustomerId = await AsaasService.createCustomer(clientId);
 
       // 2. Criar/Buscar Conta do Profissional no Asaas (Recebedor Split)
