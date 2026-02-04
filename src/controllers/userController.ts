@@ -413,11 +413,19 @@ export class UserController {
         address // Pode ser undefined
       });
 
-      res.json({
-        success: true,
-        message: 'Perfil financeiro atualizado e conta Asaas criada com sucesso',
-        data: result
-      });
+      if (result.asaasStatus === 'CREATED') {
+        res.json({
+          success: true,
+          message: 'Perfil financeiro atualizado e conta Asaas criada com sucesso',
+          data: result
+        });
+      } else {
+        res.json({
+          success: false,
+          message: 'Perfil financeiro atualizado, mas conta Asaas não foi criada',
+          data: result
+        });
+      }
     } catch (error: any) {
       console.error('Erro ao completar perfil financeiro:', error);
       res.status(400).json({

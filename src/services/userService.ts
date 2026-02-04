@@ -28,11 +28,6 @@ export class UserService {
       // 1. Atualizar dados do usuário
       user.cpfCnpj = data.cpfCnpj;
       user.birthDate = new Date(data.birthDate);
-
-      // Se mobilePhone for diferente, atualizamos. O Asaas exige mobilePhone limpo.
-      if (data.mobilePhone) {
-        // TODO: Considerar atualizar user.phone se desejado
-      }
       await user.save();
 
       // 2. Salvar Endereço
@@ -50,12 +45,15 @@ export class UserService {
         mobilePhone: data.mobilePhone
       });
 
+      console.log(asaasId);
+
       return {
         user,
         asaasStatus: asaasId ? 'CREATED' : 'ERROR'
       };
 
     } catch (error) {
+      console.log('Erro ao completar perfil financeiro', error);
       throw error;
     }
   }
