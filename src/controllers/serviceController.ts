@@ -234,6 +234,8 @@ export class ServiceController {
     const professionalId = (req as any).user._id;
     const { lat, lng } = req.body;
 
+    console.log('📍 [Backend] UpdateLocation Request:', { serviceId, lat, lng });
+
     if (!lat || !lng) {
       return res.status(400).json({
         success: false,

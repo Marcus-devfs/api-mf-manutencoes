@@ -321,6 +321,8 @@ export class ServiceService {
         timestamp,
       };
 
+      console.log('📍 [Backend] Saving Service Location:', service.professionalLocation);
+
       // Se ainda não está em trânsito, atualizar status
       if (service.routeStatus === 'route_started') {
         service.routeStatus = 'in_transit';
