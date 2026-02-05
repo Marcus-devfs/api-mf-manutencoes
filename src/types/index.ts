@@ -119,6 +119,7 @@ export interface IQuote extends Document {
   status: 'pending' | 'accepted' | 'rejected' | 'expired';
   paymentStatus: 'pending' | 'paid' | 'refunded';
   paymentId?: string;
+  paymentRef?: any; // Populated Payment
   createdAt: Date;
   updatedAt: Date;
   // Virtual properties

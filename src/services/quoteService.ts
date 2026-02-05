@@ -95,9 +95,29 @@ export class QuoteService {
 
       const quotes = await Quote.find(filter)
         .sort({ createdAt: -1 })
-        .populate('professionalId', 'name email phone avatar rating');
+        .populate('professionalId', 'name email phone avatar rating')
+        .lean();
 
-      return quotes;
+      // Manualmente buscar e anexar pagamento para orçamentos aceitos
+      // Isso resolve o problema de incompatibilidade de tipos (String vs ObjectId) no DB
+      const quotesWithPayment = await Promise.all(quotes.map(async (q: any) => {
+        if (q.status === 'accepted') {
+          // Tenta buscar pagamento pelo quoteId (que pode estar como string no Payment)
+          // Buscamos qualquer pagamento vinculado, preferencialmente 'completed'
+          const payment = await Payment.findOne({
+            quoteId: q._id.toString(),
+            status: { $in: ['completed', 'pending'] }
+          }).sort({ createdAt: -1 }); // Pega o mais recente
+
+          if (payment) {
+            q.paymentRef = payment;
+            q.paymentId = payment._id.toString(); // Garante ID correto
+          }
+        }
+        return q;
+      }));
+
+      return quotesWithPayment;
     } catch (error) {
       throw error;
     }
@@ -133,7 +153,8 @@ export class QuoteService {
             }
           })
           .populate('professionalId', 'name email phone avatar rating')
-          .populate('clientId', 'name email phone'),
+          .populate('clientId', 'name email phone')
+          .populate('paymentRef'), // Populando pagamento
         Quote.countDocuments(filter)
       ]);
 

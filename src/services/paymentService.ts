@@ -97,7 +97,7 @@ export class PaymentService {
       await payment.save();
 
       if (payment.status === 'completed') {
-        await quote.markAsPaid(asaasPayment.id);
+        await quote.markAsPaid(payment._id.toString());
       }
 
       return { payment };
@@ -225,7 +225,7 @@ export class PaymentService {
       // Atualizar orçamento
       const quote = await Quote.findById(payment.quoteId);
       if (quote) {
-        await quote.markAsPaid(transactionId);
+        await quote.markAsPaid(payment._id.toString());
       }
 
       return payment;
@@ -311,7 +311,7 @@ export class PaymentService {
       // Atualizar orçamento
       const quote = await Quote.findById(payment.quoteId);
       if (quote) {
-        await quote.markAsPaid(transactionId);
+        await quote.markAsPaid(payment._id.toString());
       }
 
       return payment;
@@ -395,7 +395,22 @@ export class PaymentService {
   // Buscar pagamento por ID
   static async getPaymentById(paymentId: string, userId: string, userRole: string): Promise<IPayment> {
     try {
-      const filter = userRole === 'client' ? { _id: paymentId, clientId: userId } : { _id: paymentId, professionalId: userId };
+      let filter: any;
+
+      // Verificar se é um ID antigo do Asaas (começa com pay_) ou não é ObjectId válido
+      const isLegacyId = paymentId.startsWith('pay_') || !paymentId.match(/^[0-9a-fA-F]{24}$/);
+
+      if (isLegacyId) {
+        // Busca por transactionId para compatibilidade
+        filter = userRole === 'client'
+          ? { transactionId: paymentId, clientId: userId }
+          : { transactionId: paymentId, professionalId: userId };
+      } else {
+        // Busca normal por _id
+        filter = userRole === 'client'
+          ? { _id: paymentId, clientId: userId }
+          : { _id: paymentId, professionalId: userId };
+      }
 
       const payment = await Payment.findOne(filter)
         .populate('quoteId', 'title totalPrice status')

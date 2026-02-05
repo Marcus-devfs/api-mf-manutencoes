@@ -110,6 +110,11 @@ const quoteSchema = new Schema<IQuote>({
   },
   paymentId: {
     type: String,
+    default: null, // Mantendo como string simples para compatibilidade
+  },
+  paymentRef: {
+    type: Schema.Types.ObjectId,
+    ref: 'Payment',
     default: null,
   },
 }, {
