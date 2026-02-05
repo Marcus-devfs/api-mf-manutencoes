@@ -539,6 +539,8 @@ export class PaymentService {
           service: (p.quoteId as any)?.title || 'Serviço',
           client: (p.clientId as any)?.name || 'Cliente',
           amount: p.amount,
+          netAmount: p.netAmount,
+          paymentMethod: p.paymentMethod,
           date: p.createdAt,
           status: p.status
         }))
