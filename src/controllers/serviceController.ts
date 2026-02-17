@@ -419,21 +419,19 @@ export class ServiceController {
 
   // Buscar todos os serviços (admin)
   static getAllServices = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const { page, limit, status, category, clientId } = req.query;
+    const { page, limit, status, category } = req.query;
 
-    // Implementar busca de todos os serviços para admin
+    const result = await ServiceService.getAllServices({
+      page,
+      limit,
+      status,
+      category
+    });
+
     res.json({
       success: true,
       message: 'Serviços encontrados',
-      data: {
-        services: [],
-        pagination: {
-          page: parseInt(page as string) || 1,
-          limit: parseInt(limit as string) || 10,
-          total: 0,
-          pages: 0,
-        },
-      },
+      data: result,
     });
   });
 

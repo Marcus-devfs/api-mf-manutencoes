@@ -565,6 +565,29 @@ export class PaymentService {
     }
   }
 
+  // Calcular saldo disponível para saque
+  static async getAvailableBalance(userId: string): Promise<number> {
+    try {
+      // Soma de todos os pagamentos concluídos onde o usuário é o profissional
+      // Menos a taxa da plataforma (appFee)
+      // O split já deve ter considerado taxas de gateway ou não, depende da regra.
+      // Aqui usamos netAmount que salvamos no pagamento
+
+      const payments = await Payment.find({
+        professionalId: userId,
+        status: 'completed'
+      });
+
+      const totalEarnings = payments.reduce((sum, payment) => {
+        return sum + (payment.netAmount || 0);
+      }, 0);
+
+      return totalEarnings;
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // Gerar código PIX (simulado)
   private static generatePixCode(amount: number): string {
     // Em uma implementação real, você usaria um provedor PIX

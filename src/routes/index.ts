@@ -12,6 +12,7 @@ import reviewRoutes from './reviews';
 import addressRoutes from './addresses';
 import paymentMethodRoutes from './paymentMethods';
 import withdrawalsRoutes from './withdrawals';
+import adminRoutes from './admin';
 
 const router = Router();
 
@@ -29,6 +30,7 @@ router.use('/push-notifications', pushNotificationRoutes);
 router.use('/upload', uploadRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/addresses', addressRoutes);
+router.use('/admin', adminRoutes);
 
 // Rota de health check
 router.get('/health', (req, res) => {

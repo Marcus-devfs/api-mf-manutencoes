@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { body } from 'express-validator';
-import { Withdrawal } from '../models/Withdrawal';
-import { PaymentService } from '../services/paymentService';
+import { WithdrawalService } from '../services/withdrawalService';
 import { asyncHandler, badRequest } from '../middlewares/errorHandler';
 
 export class WithdrawalController {
@@ -24,27 +23,7 @@ export class WithdrawalController {
             throw badRequest('É necessário informar uma chave PIX ou conta bancária.');
         }
 
-        // Check balance
-        const earnings = await PaymentService.getEarnings(userId, 'year'); // Get total earnings context
-        // NOTE: In a real app, we would have a 'Wallet' model to track current balance properly.
-        // For now, checking if requested amount is reasonable compared to total net earnings.
-        // Ideally: const balance = await WalletService.getBalance(userId);
-
-        // Simplification for this MVP: We won't block based on strict balance check since we don't have a Wallet transaction ledger yet,
-        // but we can check if they have at least *some* earnings.
-        if (earnings.netTotal < amount) {
-            throw badRequest('Saldo insuficiente para realizar este saque.');
-        }
-
-        const withdrawal = new Withdrawal({
-            professionalId: userId,
-            amount,
-            pixKey,
-            bankAccount,
-            status: 'pending'
-        });
-
-        await withdrawal.save();
+        const withdrawal = await WithdrawalService.requestWithdrawal(userId, amount, pixKey, bankAccount);
 
         res.status(201).json({
             success: true,
@@ -56,8 +35,7 @@ export class WithdrawalController {
     static getWithdrawals = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
         const userId = (req as any).user._id;
 
-        const withdrawals = await Withdrawal.find({ professionalId: userId })
-            .sort({ createdAt: -1 });
+        const withdrawals = await WithdrawalService.getHistory(userId);
 
         res.json({
             success: true,

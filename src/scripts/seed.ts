@@ -12,13 +12,21 @@ const seedData = async () => {
     await mongoose.connect(config.mongodbUri);
     console.log('Connected to database');
 
-    // Clear existing data
-    await User.deleteMany({});
-    await Service.deleteMany({});
-    await Quote.deleteMany({});
-    await Chat.deleteMany({});
-    await ChatMessage.deleteMany({});
-    console.log('Cleared existing data');
+    // Check if data already exists to prevent data loss
+    const userCount = await User.countDocuments();
+    if (userCount > 0) {
+      console.log('Users already exist in database. Skipping seed to prevent data loss.');
+      return;
+    }
+
+    // Clear existing data (only if we validly decided to re-seed, though we returned above)
+    // Commented out to be extra safe:
+    // await User.deleteMany({});
+    // await Service.deleteMany({});
+    // await Quote.deleteMany({});
+    // await Chat.deleteMany({});
+    // await ChatMessage.deleteMany({});
+    console.log('Starting seed process...');
 
     // Create users
     const hashedPassword = await bcrypt.hash('123456', 10);
@@ -99,6 +107,20 @@ const seedData = async () => {
         rating: 4.7,
         totalServices: 18,
         specialties: ['Design de móveis', 'Restauração', 'Pintura de móveis'],
+      },
+      {
+        name: 'Administrador',
+        email: 'admin@email.com',
+        password: hashedPassword,
+        phone: '(11) 00000-0000',
+        userType: 'admin',
+        role: 'admin', // Garantindo que o role seja salvo corretamente
+        address: {
+          street: 'Sede Administrativa',
+          city: 'São Paulo',
+          state: 'SP',
+          zipCode: '01000-000',
+        },
       },
     ];
 
@@ -381,6 +403,7 @@ const seedData = async () => {
     console.log('Professional: carlos@email.com / 123456');
     console.log('Professional: pedro@email.com / 123456');
     console.log('Professional: ana@email.com / 123456');
+    console.log('Admin: admin@email.com / 123456');
 
   } catch (error) {
     console.error('Error seeding data:', error);

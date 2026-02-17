@@ -307,20 +307,20 @@ export class UserController {
 
   // Buscar usuários (admin)
   static getUsers = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const { page = 1, limit = 10, role, isActive } = req.query;
+    const { page = 1, limit = 10, role, isActive, search } = req.query;
 
-    // Implementar busca de usuários com filtros
-    // Por enquanto, retornar lista vazia
+    const result = await UserService.getUsers({ page, limit, role, isActive, search });
+
     res.json({
       success: true,
       message: 'Usuários encontrados',
       data: {
-        users: [],
+        users: result.users,
         pagination: {
-          page: parseInt(page as string),
-          limit: parseInt(limit as string),
-          total: 0,
-          pages: 0,
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          pages: result.pages,
         },
       },
     });

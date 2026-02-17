@@ -846,4 +846,45 @@ export class ServiceService {
       throw error;
     }
   }
+
+  // Buscar todos os serviços (admin)
+  static async getAllServices(query: any = {}): Promise<{ services: any[]; total: number; pages: number; page: number; limit: number }> {
+    try {
+      const page = parseInt(query.page as string) || 1;
+      const limit = parseInt(query.limit as string) || 10;
+      const skip = (page - 1) * limit;
+
+      const filter: any = {};
+
+      if (query.category) {
+        filter.category = query.category;
+      }
+
+      if (query.status) {
+        filter.status = query.status;
+      }
+
+      const [services, total] = await Promise.all([
+        Service.find(filter)
+          .populate('clientId', 'name email phone avatar')
+          .populate('professionalId', 'name email phone avatar')
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit),
+        Service.countDocuments(filter)
+      ]);
+
+      const pages = Math.ceil(total / limit);
+
+      return {
+        services,
+        total,
+        pages,
+        page,
+        limit
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
 }

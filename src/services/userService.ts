@@ -173,4 +173,46 @@ export class UserService {
       throw error;
     }
   }
+  // Buscar usuários com filtros e paginação
+  static async getUsers(query: any = {}): Promise<{ users: IUser[]; total: number; pages: number; page: number; limit: number }> {
+    try {
+      const page = parseInt(query.page as string) || 1;
+      const limit = parseInt(query.limit as string) || 10;
+      const skip = (page - 1) * limit;
+
+      const filter: any = {};
+
+      if (query.role) {
+        filter.role = query.role;
+      }
+
+      if (query.isActive !== undefined) {
+        filter.isActive = query.isActive === 'true';
+      }
+
+      if (query.search) {
+        filter.$or = [
+          { name: { $regex: query.search, $options: 'i' } },
+          { email: { $regex: query.search, $options: 'i' } }
+        ];
+      }
+
+      const [users, total] = await Promise.all([
+        User.find(filter).skip(skip).limit(limit).sort({ createdAt: -1 }),
+        User.countDocuments(filter)
+      ]);
+
+      const pages = Math.ceil(total / limit);
+
+      return {
+        users,
+        total,
+        pages,
+        page,
+        limit
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
 }
