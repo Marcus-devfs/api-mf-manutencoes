@@ -28,6 +28,19 @@ export class AdminController {
             next(error);
         }
     }
+    async getQuotes(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await adminService.getQuotes(req.query);
+
+            res.status(200).json({
+                success: true,
+                message: 'Orçamentos encontrados',
+                data: result
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 export default new AdminController();

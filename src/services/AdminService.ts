@@ -119,6 +119,44 @@ export class AdminService {
             throw error;
         }
     }
+    async getQuotes(query: any = {}): Promise<{ quotes: any[]; total: number; pages: number; page: number; limit: number }> {
+        try {
+            const page = parseInt(query.page as string) || 1;
+            const limit = parseInt(query.limit as string) || 10;
+            const skip = (page - 1) * limit;
+
+            const filter: any = {};
+
+            if (query.status) {
+                filter.status = query.status;
+            }
+
+            // Using Quote model directly
+            const [quotes, total] = await Promise.all([
+                Quote.find(filter)
+                    .populate('clientId', 'name email phone avatar')
+                    .populate('professionalId', 'name email phone avatar')
+                    .populate('serviceId', 'title category')
+                    .sort({ createdAt: -1 })
+                    .skip(skip)
+                    .limit(limit),
+                Quote.countDocuments(filter)
+            ]);
+
+            const pages = Math.ceil(total / limit);
+
+            return {
+                quotes,
+                total,
+                pages,
+                page,
+                limit
+            };
+        } catch (error) {
+            console.error('Error fetching admin quotes:', error);
+            throw error;
+        }
+    }
 }
 
 export default new AdminService();

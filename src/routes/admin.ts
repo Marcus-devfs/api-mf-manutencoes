@@ -11,4 +11,7 @@ router.get('/dashboard', authenticateToken, requireAdmin, adminController.getDas
 // Services route
 router.get('/services', authenticateToken, requireAdmin, adminController.getServices);
 
+// Quotes route
+router.get('/quotes', authenticateToken, requireAdmin, adminController.getQuotes);
+
 export default router;
