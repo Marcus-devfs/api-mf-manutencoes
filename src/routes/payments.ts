@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { PaymentController } from '../controllers/paymentController';
-import { 
-  authenticateToken, 
+import {
+  authenticateToken,
   requireVerification,
   requireClient,
   requireProfessional,
   requireClientOrProfessional,
   requireAdmin,
-  apiLimiter 
+  apiLimiter
 } from '../middlewares';
 import { handleValidationErrors, validatePagination } from '../middlewares/validation';
 
@@ -19,89 +19,94 @@ router.use(authenticateToken);
 router.use(requireVerification);
 
 // Rotas para métodos de pagamento
-router.get('/methods', 
+router.get('/methods',
   PaymentController.getPaymentMethods
 );
 
-// Rotas para processar pagamentos
-router.post('/stripe', 
-  requireClient,
-  PaymentController.stripePaymentValidation,
-  handleValidationErrors,
-  PaymentController.processStripePayment
-);
 
-router.post('/pix', 
+router.post('/pix',
   requireClient,
   PaymentController.pixPaymentValidation,
   handleValidationErrors,
   PaymentController.processPixPayment
 );
 
-router.post('/pix/confirm', 
+router.post('/pix/confirm',
   PaymentController.confirmPaymentValidation,
   handleValidationErrors,
   PaymentController.confirmPixPayment
 );
 
-router.post('/bank-transfer', 
+router.post('/bank-transfer',
   requireClient,
   PaymentController.bankTransferValidation,
   handleValidationErrors,
   PaymentController.processBankTransfer
 );
 
-router.post('/bank-transfer/confirm', 
+router.post('/bank-transfer/confirm',
   PaymentController.confirmPaymentValidation,
   handleValidationErrors,
   PaymentController.confirmBankTransfer
 );
 
 // Webhook do Stripe
-router.post('/stripe/webhook', 
+router.post('/stripe/webhook',
   PaymentController.stripeWebhook
 );
 
 // Rotas para clientes
-router.get('/client/my-payments', 
+router.get('/client/my-payments',
   requireClient,
   validatePagination,
   PaymentController.getClientPayments
 );
 
 // Rotas para profissionais
-router.get('/professional/my-payments', 
+router.get('/professional/my-payments',
   requireProfessional,
   validatePagination,
   PaymentController.getProfessionalPayments
 );
 
 // Rotas compartilhadas
-router.get('/:paymentId', 
+router.get(
+  '/stats',
+  authenticateToken,
+  PaymentController.getPaymentStats
+);
+
+router.get(
+  '/earnings',
+  authenticateToken,
+  PaymentController.getEarnings
+);
+
+router.get('/:paymentId',
   requireClientOrProfessional,
   PaymentController.getPaymentById
 );
 
-router.post('/:paymentId/refund', 
+router.post('/:paymentId/refund',
   requireClientOrProfessional,
   PaymentController.refundValidation,
   handleValidationErrors,
   PaymentController.processRefund
 );
 
-router.get('/stats/overview', 
+router.get('/stats/overview',
   requireClientOrProfessional,
   PaymentController.getPaymentStats
 );
 
 // Rotas administrativas
-router.get('/admin/all', 
+router.get('/admin/all',
   requireAdmin,
   validatePagination,
   PaymentController.getAllPayments
 );
 
-router.get('/admin/stats/overview', 
+router.get('/admin/stats/overview',
   requireAdmin,
   PaymentController.getGeneralPaymentStats
 );

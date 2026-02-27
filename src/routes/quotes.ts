@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { QuoteController } from '../controllers/quoteController';
-import { 
-  authenticateToken, 
+import {
+  authenticateToken,
   requireVerification,
   requireClient,
   requireProfessional,
   requireClientOrProfessional,
   requireAdmin,
-  apiLimiter 
+  apiLimiter
 } from '../middlewares';
 import { handleValidationErrors, validatePagination } from '../middlewares/validation';
 
@@ -19,89 +19,89 @@ router.use(authenticateToken);
 router.use(requireVerification);
 
 // Rotas para profissionais
-router.post('/', 
+router.post('/',
   requireProfessional,
   QuoteController.createQuoteValidation,
   handleValidationErrors,
   QuoteController.createQuote
 );
 
-router.get('/professional/my-quotes', 
+router.get('/professional/my-quotes',
   requireProfessional,
   validatePagination,
   QuoteController.getProfessionalQuotes
 );
 
-router.put('/:quoteId', 
+router.put('/:quoteId',
   requireProfessional,
   QuoteController.updateQuoteValidation,
   handleValidationErrors,
   QuoteController.updateQuote
 );
 
-router.delete('/:quoteId', 
+router.delete('/:quoteId',
   requireProfessional,
   QuoteController.deleteQuote
 );
 
-router.get('/professional/expiring', 
+router.get('/professional/expiring',
   requireProfessional,
   QuoteController.getExpiringQuotes
 );
 
 // Rotas para clientes
-router.get('/client/my-quotes', 
+router.get('/client/my-quotes',
   requireClient,
   validatePagination,
   QuoteController.getClientQuotes
 );
 
-router.patch('/:quoteId/accept', 
+router.patch('/:quoteId/accept',
   requireClient,
   QuoteController.acceptQuote
 );
 
-router.patch('/:quoteId/reject', 
+router.patch('/:quoteId/reject',
   requireClient,
   QuoteController.rejectQuote
 );
 
 // Rotas para pagamento
-router.post('/:quoteId/payment', 
+router.post('/:quoteId/payment',
   requireClient,
   QuoteController.processPayment
 );
 
 // Rotas compartilhadas
-router.get('/service/:serviceId', 
+router.get('/service/:serviceId',
   requireClientOrProfessional,
   QuoteController.getQuotesByService
 );
 
-router.get('/:quoteId', 
+router.get('/:quoteId',
   requireClientOrProfessional,
   QuoteController.getQuoteById
 );
 
-router.get('/search/advanced', 
+router.get('/search/advanced',
   requireClientOrProfessional,
   validatePagination,
   QuoteController.searchQuotes
 );
 
-router.get('/stats/overview', 
+router.get('/stats/overview',
   requireClientOrProfessional,
   QuoteController.getQuoteStats
 );
 
 // Rotas administrativas
-router.get('/admin/all', 
+router.get('/admin/all',
   requireAdmin,
   validatePagination,
   QuoteController.getAllQuotes
 );
 
-router.get('/admin/stats/overview', 
+router.get('/admin/stats/overview',
   requireAdmin,
   QuoteController.getGeneralQuoteStats
 );

@@ -80,8 +80,33 @@ router.patch('/:serviceId/start',
   ServiceController.startService
 );
 
+router.patch('/:serviceId/location', 
+  requireProfessional,
+  ServiceController.updateLocation
+);
+
+router.patch('/:serviceId/arrived', 
+  requireProfessional,
+  ServiceController.markArrived
+);
+
+router.patch('/:serviceId/regenerate-code', 
+  requireProfessional,
+  ServiceController.regenerateVerificationCode
+);
+
+router.patch('/:serviceId/verify-code', 
+  requireProfessional,
+  ServiceController.verifyCodeAndStart
+);
+
+router.patch('/:serviceId/sign', 
+  requireClientOrProfessional,
+  ServiceController.signService
+);
+
 router.patch('/:serviceId/complete', 
-  requireClient,
+  requireProfessional,
   ServiceController.completeService
 );
 

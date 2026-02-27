@@ -30,21 +30,19 @@ const laborSchema = new Schema({
     type: String,
     required: [true, 'Descrição da mão de obra é obrigatória'],
     trim: true,
-    maxlength: [200, 'Descrição deve ter no máximo 200 caracteres'],
+    maxlength: [1000, 'Descrição deve ter no máximo 1000 caracteres'],
   },
   hours: {
     type: Number,
-    required: [true, 'Horas são obrigatórias'],
-    min: [0.5, 'Horas devem ser pelo menos 0.5'],
+    required: false, // Opcional para orçamento simples
   },
   pricePerHour: {
     type: Number,
-    required: [true, 'Preço por hora é obrigatório'],
-    min: [0, 'Preço por hora deve ser maior ou igual a zero'],
+    required: false, // Opcional para orçamento simples
   },
   total: {
     type: Number,
-    required: [true, 'Total da mão de obra é obrigatório'],
+    required: [true, 'Valor total da mão de obra é obrigatório'],
     min: [0, 'Total deve ser maior ou igual a zero'],
   },
 }, { _id: false });
@@ -76,7 +74,6 @@ const quoteSchema = new Schema<IQuote>({
     type: String,
     required: false,
     trim: true,
-    minlength: [10, 'Descrição deve ter pelo menos 10 caracteres'],
     maxlength: [1000, 'Descrição deve ter no máximo 1000 caracteres'],
   },
   materials: [materialSchema],
@@ -90,7 +87,7 @@ const quoteSchema = new Schema<IQuote>({
     type: Date,
     required: [true, 'Data de validade é obrigatória'],
     validate: {
-      validator: function(v: Date) {
+      validator: function (v: Date) {
         // A validação só se aplica quando o orçamento está sendo criado ou ainda está pendente
         // Se já foi aceito, não precisa validar a data de validade
         if (this.status === 'accepted' || this.status === 'rejected') {
@@ -113,6 +110,11 @@ const quoteSchema = new Schema<IQuote>({
   },
   paymentId: {
     type: String,
+    default: null, // Mantendo como string simples para compatibilidade
+  },
+  paymentRef: {
+    type: Schema.Types.ObjectId,
+    ref: 'Payment',
     default: null,
   },
 }, {
@@ -129,7 +131,7 @@ quoteSchema.index({ validUntil: 1 });
 quoteSchema.index({ createdAt: -1 });
 
 // Middleware para calcular preço total antes de salvar (fallback)
-quoteSchema.pre('save', function(next) {
+quoteSchema.pre('save', function (next) {
   // Só calcular se totalPrice não foi definido
   if (this.totalPrice === undefined || this.totalPrice === null) {
     // Calcular total dos materiais (apenas materiais com nome preenchido)
@@ -139,22 +141,27 @@ quoteSchema.pre('save', function(next) {
       }
       return sum;
     }, 0);
-    
+
     // Calcular total da mão de obra
-    if (this.labor && this.labor.hours && this.labor.pricePerHour) {
-      this.labor.total = this.labor.hours * this.labor.pricePerHour;
-      this.totalPrice = materialsTotal + this.labor.total;
+    if (this.labor) {
+      if (this.labor.hours && this.labor.pricePerHour) {
+        // Se tem horas e preço, calcular (modo detalhado)
+        this.labor.total = this.labor.hours * this.labor.pricePerHour;
+      }
+      // Se não tem horas/preço, usa o total que já veio no objeto labor (modo simples)
+
+      this.totalPrice = materialsTotal + (this.labor.total || 0);
     } else {
       // Se não tem mão de obra, usar apenas materiais
       this.totalPrice = materialsTotal;
     }
   }
-  
+
   next();
 });
 
 // Middleware para verificar se o orçamento expirou
-quoteSchema.pre('save', function(next) {
+quoteSchema.pre('save', function (next) {
   if (this.validUntil < new Date() && this.status === 'pending') {
     this.status = 'expired';
   }
@@ -162,9 +169,9 @@ quoteSchema.pre('save', function(next) {
 });
 
 // Middleware para calcular totais durante atualização
-quoteSchema.pre('findOneAndUpdate', function(next) {
+quoteSchema.pre('findOneAndUpdate', function (next) {
   const update = this.getUpdate() as any;
-  
+
   if (update && (update.materials || update.labor)) {
     // Calcular total dos materiais
     const materials = update.materials || [];
@@ -174,40 +181,44 @@ quoteSchema.pre('findOneAndUpdate', function(next) {
       }
       return sum;
     }, 0);
-    
+
     // Calcular total da mão de obra
     let laborTotal = 0;
-    if (update.labor && update.labor.hours && update.labor.pricePerHour) {
-      laborTotal = update.labor.hours * update.labor.pricePerHour;
-      update.labor.total = laborTotal;
+    if (update.labor) {
+      if (update.labor.hours && update.labor.pricePerHour) {
+        laborTotal = update.labor.hours * update.labor.pricePerHour;
+        update.labor.total = laborTotal;
+      } else {
+        laborTotal = update.labor.total || 0;
+      }
     }
-    
+
     // Calcular preço total
     update.totalPrice = materialsTotal + laborTotal;
   }
-  
+
   next();
 });
 
 // Virtual para verificar se está expirado
-quoteSchema.virtual('isExpired').get(function() {
+quoteSchema.virtual('isExpired').get(function () {
   return this.validUntil < new Date();
 });
 
 // Virtual para verificar se pode ser aceito
-quoteSchema.virtual('canBeAccepted').get(function() {
+quoteSchema.virtual('canBeAccepted').get(function () {
   return this.status === 'pending' && !this.isExpired;
 });
 
 // Virtual para calcular dias até expirar
-quoteSchema.virtual('daysUntilExpiry').get(function() {
+quoteSchema.virtual('daysUntilExpiry').get(function () {
   const now = new Date();
   const diffTime = this.validUntil.getTime() - now.getTime();
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 });
 
 // Método para aceitar orçamento
-quoteSchema.methods.accept = function() {
+quoteSchema.methods.accept = function () {
   if (!this.canBeAccepted) {
     throw new Error('Orçamento não pode ser aceito');
   }
@@ -216,7 +227,7 @@ quoteSchema.methods.accept = function() {
 };
 
 // Método para rejeitar orçamento
-quoteSchema.methods.reject = function() {
+quoteSchema.methods.reject = function () {
   if (this.status !== 'pending') {
     throw new Error('Apenas orçamentos pendentes podem ser rejeitados');
   }
@@ -225,7 +236,7 @@ quoteSchema.methods.reject = function() {
 };
 
 // Método para marcar como pago
-quoteSchema.methods.markAsPaid = function(paymentId: string) {
+quoteSchema.methods.markAsPaid = function (paymentId: string) {
   if (this.status !== 'accepted') {
     throw new Error('Apenas orçamentos aceitos podem ser marcados como pagos');
   }
@@ -236,13 +247,13 @@ quoteSchema.methods.markAsPaid = function(paymentId: string) {
 };
 
 // Método para adicionar material
-quoteSchema.methods.addMaterial = function(material: any) {
+quoteSchema.methods.addMaterial = function (material: any) {
   this.materials.push(material);
   return this.save();
 };
 
 // Método para remover material
-quoteSchema.methods.removeMaterial = function(materialId: string) {
+quoteSchema.methods.removeMaterial = function (materialId: string) {
   this.materials.id(materialId)?.remove();
   return this.save();
 };

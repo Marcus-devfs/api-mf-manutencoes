@@ -95,9 +95,29 @@ export class QuoteService {
 
       const quotes = await Quote.find(filter)
         .sort({ createdAt: -1 })
-        .populate('professionalId', 'name email phone avatar rating');
+        .populate('professionalId', 'name email phone avatar rating')
+        .lean();
 
-      return quotes;
+      // Manualmente buscar e anexar pagamento para orçamentos aceitos
+      // Isso resolve o problema de incompatibilidade de tipos (String vs ObjectId) no DB
+      const quotesWithPayment = await Promise.all(quotes.map(async (q: any) => {
+        if (q.status === 'accepted') {
+          // Tenta buscar pagamento pelo quoteId (que pode estar como string no Payment)
+          // Buscamos qualquer pagamento vinculado, preferencialmente 'completed'
+          const payment = await Payment.findOne({
+            quoteId: q._id.toString(),
+            status: { $in: ['completed', 'pending'] }
+          }).sort({ createdAt: -1 }); // Pega o mais recente
+
+          if (payment) {
+            q.paymentRef = payment;
+            q.paymentId = payment._id.toString(); // Garante ID correto
+          }
+        }
+        return q;
+      }));
+
+      return quotesWithPayment;
     } catch (error) {
       throw error;
     }
@@ -117,6 +137,7 @@ export class QuoteService {
       const filter: any = { clientId };
       if (status) filter.status = status;
       if (serviceId) filter.serviceId = serviceId;
+      filter.validUntil = { $gte: new Date() };
 
       const [quotes, total] = await Promise.all([
         Quote.find(filter)
@@ -132,7 +153,8 @@ export class QuoteService {
             }
           })
           .populate('professionalId', 'name email phone avatar rating')
-          .populate('clientId', 'name email phone'),
+          .populate('clientId', 'name email phone')
+          .populate('paymentRef'), // Populando pagamento
         Quote.countDocuments(filter)
       ]);
 
@@ -161,6 +183,7 @@ export class QuoteService {
       const filter: any = { professionalId };
       if (status) filter.status = status;
       if (serviceId) filter.serviceId = serviceId;
+      filter.validUntil = { $gte: new Date() };
 
       const [quotes, total] = await Promise.all([
         Quote.find(filter)
@@ -200,10 +223,10 @@ export class QuoteService {
 
       // Rejeitar outros orçamentos pendentes para o mesmo serviço
       await Quote.updateMany(
-        { 
-          serviceId: quote.serviceId, 
-          _id: { $ne: quoteId }, 
-          status: 'pending' 
+        {
+          serviceId: quote.serviceId,
+          _id: { $ne: quoteId },
+          status: 'pending'
         },
         { status: 'rejected' }
       );
@@ -312,13 +335,29 @@ export class QuoteService {
     paymentMethod: string;
     paymentId?: string;
     transactionId?: string;
-  }): Promise<{ quote: IQuote; payment: any }> {
+    creditCard?: {
+      holderName: string;
+      number: string;
+      expiryMonth: string;
+      expiryYear: string;
+      ccv: string;
+    };
+    creditCardHolderInfo?: {
+      name: string;
+      email: string;
+      cpfCnpj: string;
+      postalCode: string;
+      addressNumber: string;
+      phone: string;
+    };
+  }): Promise<{ quote: IQuote; payment: any; pixCode?: string; qrCode?: string }> {
     try {
       const quote = await Quote.findById(quoteId);
       if (!quote) {
         throw notFound('Orçamento não encontrado');
       }
 
+      // Validações básicas (outras estão no PaymentService também, mas bom manter aqui)
       if (quote.status !== 'accepted') {
         throw badRequest('Apenas orçamentos aceitos podem ser pagos');
       }
@@ -327,46 +366,75 @@ export class QuoteService {
         throw badRequest('Orçamento já foi pago');
       }
 
-      // Marcar orçamento como pago
-      await quote.markAsPaid(paymentData.paymentId || paymentData.transactionId || '');
+      let result: any;
 
-      // Criar registro de pagamento
-      const payment = new Payment({
-        quoteId: quote._id,
-        clientId: quote.clientId,
-        professionalId: quote.professionalId,
-        amount: quote.totalPrice,
-        currency: 'BRL',
-        status: 'completed',
-        paymentMethod: paymentData.paymentMethod,
-        stripePaymentIntentId: paymentData.paymentId,
-        transactionId: paymentData.transactionId,
-      });
+      // Delegar para PaymentService baseado no método
+      if (paymentData.paymentMethod === 'credit_card') {
+        if (!paymentData.creditCard || !paymentData.creditCardHolderInfo) {
+          throw badRequest('Dados do cartão e do titular são obrigatórios para crédito');
+        }
 
-      await payment.save();
+        // Import dinâmico circular ou garantir que PaymentService está importado no topo
+        const { PaymentService } = require('./paymentService');
 
-      // Atualizar status do serviço para 'in_progress' quando o pagamento é confirmado
-      await Service.findByIdAndUpdate(quote.serviceId, { status: 'in_progress' });
+        result = await PaymentService.processCreditCardPayment(
+          quoteId,
+          paymentData.creditCard,
+          paymentData.creditCardHolderInfo,
+          quote.clientId.toString()
+        );
 
-      // Criar notificação para o profissional
-      await (Notification as any).createNotification(
-        quote.professionalId,
-        'Pagamento Recebido',
-        `Você recebeu o pagamento do orçamento "${quote.title}". Pode iniciar o serviço.`,
-        'payment_received',
-        { quoteId: quote._id, paymentId: payment._id }
-      );
+      } else if (paymentData.paymentMethod === 'pix') {
+        const { PaymentService } = require('./paymentService');
 
-      // Criar notificação para o cliente
-      await (Notification as any).createNotification(
-        quote.clientId,
-        'Pagamento Confirmado',
-        `Seu pagamento foi confirmado. O profissional será notificado para iniciar o serviço.`,
-        'payment_confirmed',
-        { quoteId: quote._id, paymentId: payment._id }
-      );
+        console.log('paymentData do usuário:', paymentData);
+        // Reutiliza creditCardHolderInfo como payerInfo se disponível
+        const payerInfo = paymentData.creditCardHolderInfo;
+        result = await PaymentService.processPixPayment(quoteId, quote.clientId.toString(), payerInfo);
 
-      return { quote, payment };
+      } else {
+        // Fallback para métodos manuais antigos ou erro
+        // Por enquanto vamos lançar erro se não for um dos suportados pelo Asaas flow novo
+        // Se quiser manter o suporte antigo a "mock", deixe aqui, mas o objetivo é migrar.
+        throw badRequest('Método de pagamento não suportado ou inválido');
+      }
+
+      // Se o pagamento for confirmado imediatamente (ex: crédito sandbox), o PaymentService já atualiza o quote
+      // Mas precisamos garantir que o status do serviço também atualize.
+      // Recarregar quote para ver status
+      const updatedQuote = await Quote.findById(quoteId);
+
+      if (updatedQuote && updatedQuote.paymentStatus === 'paid') {
+        await Service.findByIdAndUpdate(quote.serviceId, { status: 'in_progress' });
+
+        // Notificações já são enviadas pelo PaymentService? 
+        // O PaymentService atual não envia notificações, vamos adicionar aqui se necessário ou mover para lá.
+        // A implementação anterior do QuoteService enviava. Vamos manter envio aqui se status mudou.
+
+        await (Notification as any).createNotification(
+          quote.professionalId,
+          'Pagamento Recebido',
+          `Você recebeu o pagamento do orçamento "${quote.title}". Pode iniciar o serviço.`,
+          'payment_received',
+          { quoteId: quote._id, paymentId: result.payment._id }
+        );
+
+        await (Notification as any).createNotification(
+          quote.clientId,
+          'Pagamento Confirmado',
+          `Seu pagamento foi confirmado. O profissional será notificado para iniciar o serviço.`,
+          'payment_confirmed',
+          { quoteId: quote._id, paymentId: result.payment._id }
+        );
+      }
+
+      return {
+        quote: updatedQuote || quote,
+        payment: result.payment,
+        pixCode: result.pixCode,
+        qrCode: result.qrCode
+      };
+
     } catch (error) {
       throw error;
     }
@@ -384,9 +452,9 @@ export class QuoteService {
   }> {
     try {
       const filter = userRole === 'client' ? { clientId: userId } : { professionalId: userId };
-      
+
       const quotes = await Quote.find(filter);
-      
+
       const stats = {
         totalQuotes: quotes.length,
         pendingQuotes: quotes.filter(q => q.status === 'pending').length,
@@ -396,8 +464,8 @@ export class QuoteService {
         totalEarnings: quotes
           .filter(q => q.status === 'accepted' && q.paymentStatus === 'paid')
           .reduce((sum, q) => sum + q.totalPrice, 0),
-        averageQuoteValue: quotes.length > 0 
-          ? quotes.reduce((sum, q) => sum + q.totalPrice, 0) / quotes.length 
+        averageQuoteValue: quotes.length > 0
+          ? quotes.reduce((sum, q) => sum + q.totalPrice, 0) / quotes.length
           : 0
       };
 
@@ -442,19 +510,19 @@ export class QuoteService {
     limit?: number;
   }): Promise<{ quotes: IQuote[]; total: number; page: number; pages: number }> {
     try {
-      const { 
-        userId, 
-        userRole, 
-        status, 
-        minPrice, 
-        maxPrice, 
-        category, 
-        dateFrom, 
+      const {
+        userId,
+        userRole,
+        status,
+        minPrice,
+        maxPrice,
+        category,
+        dateFrom,
         dateTo,
-        page = 1, 
-        limit = 10 
+        page = 1,
+        limit = 10
       } = searchParams;
-      
+
       const skip = (page - 1) * limit;
       const filter: any = userRole === 'client' ? { clientId: userId } : { professionalId: userId };
 
@@ -484,7 +552,7 @@ export class QuoteService {
       // Filtrar por categoria se especificado
       let filteredQuotes = quotes;
       if (category) {
-        filteredQuotes = quotes.filter(quote => 
+        filteredQuotes = quotes.filter(quote =>
           quote.serviceId && (quote.serviceId as any).category === category
         );
       }

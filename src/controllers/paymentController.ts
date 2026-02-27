@@ -62,20 +62,6 @@ export class PaymentController {
       .withMessage('Motivo deve ter entre 10 e 200 caracteres'),
   ];
 
-  // Processar pagamento com Stripe
-  static processStripePayment = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const { quoteId, paymentMethodId } = req.body;
-    const clientId = (req as any).user._id;
-
-    const result = await PaymentService.processStripePayment(quoteId, paymentMethodId, clientId);
-
-    res.json({
-      success: true,
-      message: 'Pagamento processado com sucesso',
-      data: result,
-    });
-  });
-
   // Processar pagamento PIX
   static processPixPayment = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const { quoteId } = req.body;
@@ -253,6 +239,23 @@ export class PaymentController {
         paymentsByMonth: {},
         averagePaymentValue: 0,
       },
+    });
+  });
+
+  // Obter dados do dashboard de ganhos
+  static getEarnings = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const userId = (req as any).user._id;
+    const { period } = req.query;
+
+    const earnings = await PaymentService.getEarnings(
+      userId,
+      (period as 'week' | 'month' | 'year') || 'month'
+    );
+
+    res.json({
+      success: true,
+      message: 'Ganhos obtidos com sucesso',
+      data: earnings,
     });
   });
 

@@ -15,6 +15,11 @@ export interface IUser extends Document {
   verificationToken?: string;
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
+  cpfCnpj?: string;
+  birthDate?: Date;
+  // Asaas fields
+  asaasCustomerId?: string;
+  asaasAccountId?: string;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -42,6 +47,8 @@ export interface IAddress extends Document {
 }
 
 // Service Types
+export type RouteStatus = 'not_started' | 'route_started' | 'in_transit' | 'arrived' | 'service_started' | 'service_completed';
+
 export interface IService extends Document {
   _id: string;
   clientId: string;
@@ -57,6 +64,24 @@ export interface IService extends Document {
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   priority: 'low' | 'medium' | 'high';
   deadline?: Date;
+  // Route tracking fields
+  routeStatus?: RouteStatus;
+  professionalLocation?: {
+    lat: number;
+    lng: number;
+    timestamp: Date;
+  };
+  routeStartedAt?: Date;
+  arrivedAt?: Date;
+  serviceStartedAt?: Date;
+  // Verification and signature fields
+  verificationCode?: string;
+  verificationCodeExpiresAt?: Date;
+  clientSignature?: {
+    signature: string; // Base64 da assinatura
+    signedAt: Date;
+    signedBy: string; // clientId
+  };
   createdAt: Date;
   updatedAt: Date;
   // Virtual properties
@@ -94,6 +119,7 @@ export interface IQuote extends Document {
   status: 'pending' | 'accepted' | 'rejected' | 'expired';
   paymentStatus: 'pending' | 'paid' | 'refunded';
   paymentId?: string;
+  paymentRef?: any; // Populated Payment
   createdAt: Date;
   updatedAt: Date;
   // Virtual properties
@@ -155,6 +181,11 @@ export interface IPayment extends Document {
   isProcessing: boolean;
   isSuccessful: boolean;
   hasFailed: boolean;
+  // Split Analysis
+  appFee: number;
+  netAmount: number;
+  gatewayFee: number;
+  availableAt: Date;
   // Methods
   markAsCompleted(transactionId?: string): Promise<IPayment>;
   markAsFailed(): Promise<IPayment>;

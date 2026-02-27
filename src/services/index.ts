@@ -6,4 +6,6 @@ export { QuoteService } from './quoteService';
 export { ChatService } from './chatService';
 export { PaymentService } from './paymentService';
 export { NotificationService } from './notificationService';
+export { AddressService } from './addressService';
+export { ProfessionalProfileService } from './professionalProfileService';
 

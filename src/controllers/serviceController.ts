@@ -24,21 +24,24 @@ export class ServiceController {
       .withMessage('Imagens devem ser um array'),
     body('images.*')
       .optional()
-      .isURL()
-      .withMessage('Cada imagem deve ser uma URL válida'),
+      .isString()
+      .withMessage('Cada imagem deve ser um texto válido'),
     body('address.title')
       .trim()
       .isLength({ min: 2, max: 50 })
       .withMessage('Título do endereço deve ter entre 2 e 50 caracteres'),
     body('address.street')
+      .optional({ values: 'falsy' })
       .trim()
       .isLength({ min: 2, max: 100 })
       .withMessage('Rua deve ter entre 2 e 100 caracteres'),
     body('address.number')
+      .optional({ values: 'falsy' })
       .trim()
       .isLength({ min: 1, max: 10 })
       .withMessage('Número deve ter entre 1 e 10 caracteres'),
     body('address.neighborhood')
+      .optional({ values: 'falsy' })
       .trim()
       .isLength({ min: 2, max: 50 })
       .withMessage('Bairro deve ter entre 2 e 50 caracteres'),
@@ -51,22 +54,23 @@ export class ServiceController {
       .isLength({ min: 2, max: 2 })
       .withMessage('Estado deve ter 2 caracteres'),
     body('address.zipCode')
+      .optional({ values: 'falsy' })
       .matches(/^\d{5}-?\d{3}$/)
       .withMessage('CEP deve estar no formato XXXXX-XXX'),
     body('budget.min')
-      .optional()
+      .optional({ values: 'falsy' })
       .isFloat({ min: 0 })
       .withMessage('Orçamento mínimo deve ser maior que zero'),
     body('budget.max')
-      .optional()
+      .optional({ values: 'falsy' })
       .isFloat({ min: 0 })
       .withMessage('Orçamento máximo deve ser maior que zero'),
     body('priority')
-      .optional()
+      .optional({ values: 'falsy' })
       .isIn(['low', 'medium', 'high'])
       .withMessage('Prioridade deve ser low, medium ou high'),
     body('deadline')
-      .optional()
+      .optional({ values: 'falsy' })
       .isISO8601()
       .withMessage('Prazo deve ser uma data válida'),
   ];
@@ -101,6 +105,8 @@ export class ServiceController {
   static createService = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const clientId = (req as any).user._id;
     const serviceData = { ...req.body, clientId };
+
+    console.log('serviceData', serviceData);
 
     const service = await ServiceService.createService(serviceData);
 
@@ -208,16 +214,118 @@ export class ServiceController {
     });
   });
 
-  // Marcar serviço como concluído
+  // Marcar serviço como concluído (apenas profissional, e apenas se assinado)
   static completeService = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const { serviceId } = req.params;
-    const clientId = (req as any).user._id;
+    const professionalId = (req as any).user._id;
 
-    const service = await ServiceService.completeService(serviceId, clientId);
+    const service = await ServiceService.completeService(serviceId, professionalId);
 
     res.json({
       success: true,
       message: 'Serviço marcado como concluído',
+      data: { service },
+    });
+  });
+
+  // Atualizar localização do profissional
+  static updateLocation = asyncHandler(async (req: Request, res: Response) => {
+    const { serviceId } = req.params;
+    const professionalId = (req as any).user._id;
+    const { lat, lng } = req.body;
+
+    console.log('📍 [Backend] UpdateLocation Request:', { serviceId, lat, lng });
+
+    if (!lat || !lng) {
+      return res.status(400).json({
+        success: false,
+        message: 'Latitude e longitude são obrigatórias',
+      });
+    }
+
+    const service = await ServiceService.updateProfessionalLocation(serviceId, professionalId, { lat, lng });
+
+    return res.json({
+      success: true,
+      message: 'Localização atualizada',
+      data: { service },
+    });
+  });
+
+  // Marcar que profissional chegou no local
+  static markArrived = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const { serviceId } = req.params;
+    const professionalId = (req as any).user._id;
+
+    const service = await ServiceService.markArrived(serviceId, professionalId);
+
+    res.json({
+      success: true,
+      message: 'Chegada registrada',
+      data: { service },
+    });
+  });
+
+  // Regenerar código de verificação
+  static regenerateVerificationCode = asyncHandler(async (req: Request, res: Response) => {
+    const { serviceId } = req.params;
+    const professionalId = (req as any).user._id;
+
+    const service = await ServiceService.regenerateVerificationCode(serviceId, professionalId);
+
+    return res.json({
+      success: true,
+      message: 'Novo código de verificação gerado',
+      data: { service },
+    });
+  });
+
+  // Verificar código e iniciar serviço
+  static verifyCodeAndStart = asyncHandler(async (req: Request, res: Response) => {
+    const { serviceId } = req.params;
+    const professionalId = (req as any).user._id;
+    const { code } = req.body;
+
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Código de verificação é obrigatório',
+      });
+    }
+
+    const service = await ServiceService.verifyCodeAndStartService(serviceId, professionalId, code);
+
+    return res.json({
+      success: true,
+      message: 'Código verificado e serviço iniciado',
+      data: { service },
+    });
+  });
+
+  // Assinar serviço (cliente assina no celular do profissional)
+  static signService = asyncHandler(async (req: Request, res: Response) => {
+    const { serviceId } = req.params;
+    const userId = (req as any).user._id;
+    const userRole = (req as any).user.role;
+    const { signature } = req.body;
+
+    if (!signature) {
+      return res.status(400).json({
+        success: false,
+        message: 'Assinatura é obrigatória',
+      });
+    }
+
+    // Se for profissional, buscar o clientId do serviço
+    // Se for cliente, usar o próprio ID
+    const clientId = userRole === 'professional' ? null : userId;
+    const professionalId = userRole === 'professional' ? userId : null;
+
+    const service = await ServiceService.signService(serviceId, clientId, professionalId, signature);
+
+    return res.json({
+      success: true,
+      message: 'Serviço assinado com sucesso',
       data: { service },
     });
   });
@@ -274,18 +382,18 @@ export class ServiceController {
 
   // Buscar serviços com filtros avançados
   static searchServices = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const { 
-      query, 
-      category, 
-      status, 
-      priority, 
-      minBudget, 
-      maxBudget, 
-      lat, 
-      lng, 
+    const {
+      query,
+      category,
+      status,
+      priority,
+      minBudget,
+      maxBudget,
+      lat,
+      lng,
       radius,
-      page, 
-      limit 
+      page,
+      limit
     } = req.query;
 
     const result = await ServiceService.searchServices({
@@ -311,21 +419,19 @@ export class ServiceController {
 
   // Buscar todos os serviços (admin)
   static getAllServices = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const { page, limit, status, category, clientId } = req.query;
+    const { page, limit, status, category } = req.query;
 
-    // Implementar busca de todos os serviços para admin
+    const result = await ServiceService.getAllServices({
+      page,
+      limit,
+      status,
+      category
+    });
+
     res.json({
       success: true,
       message: 'Serviços encontrados',
-      data: {
-        services: [],
-        pagination: {
-          page: parseInt(page as string) || 1,
-          limit: parseInt(limit as string) || 10,
-          total: 0,
-          pages: 0,
-        },
-      },
+      data: result,
     });
   });
 

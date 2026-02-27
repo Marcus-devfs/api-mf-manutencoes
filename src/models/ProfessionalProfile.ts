@@ -17,7 +17,7 @@ const portfolioItemSchema = new Schema({
   images: [{
     type: String,
     validate: {
-      validator: function(v: string) {
+      validator: function (v: string) {
         return /^https?:\/\/.+\.(jpg|jpeg|png|webp)$/i.test(v);
       },
       message: 'URL da imagem inválida',
@@ -50,7 +50,7 @@ const certificationSchema = new Schema({
   image: {
     type: String,
     validate: {
-      validator: function(v: string) {
+      validator: function (v: string) {
         return !v || /^https?:\/\/.+\.(jpg|jpeg|png|webp)$/i.test(v);
       },
       message: 'URL da imagem inválida',
@@ -84,9 +84,7 @@ const professionalProfileSchema = new Schema<IProfessionalProfile>({
   },
   bio: {
     type: String,
-    required: [true, 'Biografia é obrigatória'],
     trim: true,
-    minlength: [50, 'Biografia deve ter pelo menos 50 caracteres'],
     maxlength: [500, 'Biografia deve ter no máximo 500 caracteres'],
   },
   specialties: [{
@@ -97,7 +95,7 @@ const professionalProfileSchema = new Schema<IProfessionalProfile>({
   }],
   experience: {
     type: Number,
-    required: [true, 'Anos de experiência são obrigatórios'],
+    default: 0,
     min: [0, 'Experiência deve ser maior ou igual a zero'],
     max: [50, 'Experiência deve ser menor ou igual a 50 anos'],
   },
@@ -154,12 +152,12 @@ professionalProfileSchema.index({ experience: -1 });
 professionalProfileSchema.index({ totalJobs: -1 });
 
 // Virtual para calcular média de avaliações
-professionalProfileSchema.virtual('averageRating').get(function() {
+professionalProfileSchema.virtual('averageRating').get(function () {
   return this.rating;
 });
 
 // Virtual para verificar se está disponível hoje
-professionalProfileSchema.virtual('isAvailableToday').get(function() {
+professionalProfileSchema.virtual('isAvailableToday').get(function () {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const today = days[new Date().getDay()];
   const dayAvailability = this.availability[today as keyof typeof this.availability];
@@ -167,14 +165,14 @@ professionalProfileSchema.virtual('isAvailableToday').get(function() {
 });
 
 // Virtual para obter horários de hoje
-professionalProfileSchema.virtual('todaySchedule').get(function() {
+professionalProfileSchema.virtual('todaySchedule').get(function () {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const today = days[new Date().getDay()];
   return this.availability[today as keyof typeof this.availability];
 });
 
 // Método para adicionar especialidade
-professionalProfileSchema.methods.addSpecialty = function(specialty: string) {
+professionalProfileSchema.methods.addSpecialty = function (specialty: string) {
   if (!this.specialties.includes(specialty)) {
     this.specialties.push(specialty);
     return this.save();
@@ -183,37 +181,37 @@ professionalProfileSchema.methods.addSpecialty = function(specialty: string) {
 };
 
 // Método para remover especialidade
-professionalProfileSchema.methods.removeSpecialty = function(specialty: string) {
+professionalProfileSchema.methods.removeSpecialty = function (specialty: string) {
   this.specialties = this.specialties.filter((s: string) => s !== specialty);
   return this.save();
 };
 
 // Método para adicionar item ao portfólio
-professionalProfileSchema.methods.addPortfolioItem = function(item: any) {
+professionalProfileSchema.methods.addPortfolioItem = function (item: any) {
   this.portfolio.push(item);
   return this.save();
 };
 
 // Método para remover item do portfólio
-professionalProfileSchema.methods.removePortfolioItem = function(itemId: string) {
+professionalProfileSchema.methods.removePortfolioItem = function (itemId: string) {
   this.portfolio.id(itemId)?.remove();
   return this.save();
 };
 
 // Método para adicionar certificação
-professionalProfileSchema.methods.addCertification = function(certification: any) {
+professionalProfileSchema.methods.addCertification = function (certification: any) {
   this.certifications.push(certification);
   return this.save();
 };
 
 // Método para remover certificação
-professionalProfileSchema.methods.removeCertification = function(certificationId: string) {
+professionalProfileSchema.methods.removeCertification = function (certificationId: string) {
   this.certifications.id(certificationId)?.remove();
   return this.save();
 };
 
 // Método para atualizar disponibilidade
-professionalProfileSchema.methods.updateAvailability = function(day: string, availability: any) {
+professionalProfileSchema.methods.updateAvailability = function (day: string, availability: any) {
   if (this.availability[day as keyof typeof this.availability]) {
     this.availability[day as keyof typeof this.availability] = availability;
     return this.save();
@@ -222,14 +220,14 @@ professionalProfileSchema.methods.updateAvailability = function(day: string, ava
 };
 
 // Método para calcular distância
-professionalProfileSchema.methods.calculateDistance = function(lat: number, lng: number) {
+professionalProfileSchema.methods.calculateDistance = function (lat: number, lng: number) {
   // Implementar cálculo de distância usando fórmula de Haversine
   // Por enquanto, retornar 0
   return 0;
 };
 
 // Método para verificar se está dentro do raio
-professionalProfileSchema.methods.isWithinRadius = function(lat: number, lng: number) {
+professionalProfileSchema.methods.isWithinRadius = function (lat: number, lng: number) {
   const distance = this.calculateDistance(lat, lng);
   return distance <= this.serviceRadius;
 };

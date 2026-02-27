@@ -273,6 +273,28 @@ export class SocketService {
         }
       });
 
+      // Evento: Entrar na sala de acompanhamento do serviço
+      socket.on('join:service', async (data: { serviceId: string }) => {
+        try {
+          const { serviceId } = data;
+          socket.join(`service:${serviceId}`);
+          console.log(`✅ Usuário ${socket.userId} entrou na sala service:${serviceId}`);
+        } catch (error) {
+          console.error('❌ Erro ao entrar na sala do serviço:', error);
+        }
+      });
+
+      // Evento: Sair da sala de acompanhamento do serviço
+      socket.on('leave:service', async (data: { serviceId: string }) => {
+        try {
+          const { serviceId } = data;
+          socket.leave(`service:${serviceId}`);
+          console.log(`✅ Usuário ${socket.userId} saiu da sala service:${serviceId}`);
+        } catch (error) {
+          console.error('❌ Erro ao sair da sala do serviço:', error);
+        }
+      });
+
       // Evento: Desconexão
       socket.on('disconnect', (reason) => {
         
@@ -282,6 +304,25 @@ export class SocketService {
         }
       });
     });
+  }
+
+  // Emitir atualização de localização do profissional
+  emitLocationUpdate(serviceId: string, location: { lat: number; lng: number; timestamp: Date }) {
+    this.io.to(`service:${serviceId}`).emit('location:update', {
+      serviceId,
+      location,
+    });
+    console.log(`📍 Localização atualizada para serviço ${serviceId}`);
+  }
+
+  // Emitir atualização de status da rota
+  emitRouteStatusUpdate(serviceId: string, routeStatus: string, data?: any) {
+    this.io.to(`service:${serviceId}`).emit('route:status:update', {
+      serviceId,
+      routeStatus,
+      ...data,
+    });
+    console.log(`🛣️ Status da rota atualizado para serviço ${serviceId}: ${routeStatus}`);
   }
 
   private async markMessagesAsRead(chatId: string, userId: string) {

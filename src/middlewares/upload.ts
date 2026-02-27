@@ -5,6 +5,10 @@ import { createError } from './errorHandler';
 // Configuração do multer para armazenamento local (temporário)
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
+    const fs = require('fs');
+    if (!fs.existsSync('uploads/')) {
+      fs.mkdirSync('uploads/', { recursive: true });
+    }
     cb(null, 'uploads/');
   },
   filename: function (req, file, cb) {
@@ -24,6 +28,7 @@ const upload = multer({
   },
   fileFilter: (req, file, cb) => {
     // Verificar tipo de arquivo
+    console.log(file.mimetype)
     if (config.fileUpload.allowedFileTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -56,14 +61,14 @@ export const handleUploadError = (error: any, req: any, res: any, next: any) => 
         message: 'Arquivo muito grande. Tamanho máximo: 5MB',
       });
     }
-    
+
     if (error.code === 'LIMIT_FILE_COUNT') {
       return res.status(400).json({
         success: false,
         message: 'Muitos arquivos. Máximo permitido: 10 arquivos',
       });
     }
-    
+
     if (error.code === 'LIMIT_UNEXPECTED_FILE') {
       return res.status(400).json({
         success: false,
@@ -71,7 +76,7 @@ export const handleUploadError = (error: any, req: any, res: any, next: any) => 
       });
     }
   }
-  
+
   next(error);
 };
 
@@ -80,7 +85,7 @@ export const deleteLocalFile = async (filePath: string): Promise<void> => {
   try {
     const fs = await import('fs');
     const path = await import('path');
-    
+
     const fullPath = path.join(process.cwd(), filePath);
     await fs.promises.unlink(fullPath);
   } catch (error) {
@@ -91,7 +96,7 @@ export const deleteLocalFile = async (filePath: string): Promise<void> => {
 
 // Função para validar se o arquivo é uma imagem
 export const isValidImageUrl = (url: string): boolean => {
-  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif'];
   return imageExtensions.some(ext => url.toLowerCase().endsWith(ext));
 };
 
