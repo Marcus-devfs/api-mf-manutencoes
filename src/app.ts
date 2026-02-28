@@ -12,9 +12,15 @@ import database from './config/database';
 
 const app = express();
 
-// Connect to database for serverless environments (like Vercel)
-database.connect().catch(err => {
-  console.error('Failed to connect to database in app.ts:', err);
+// Connect to database middleware for serverless environments (like Vercel)
+app.use(async (req, res, next) => {
+  try {
+    await database.connect();
+    next();
+  } catch (err) {
+    console.error('Failed to connect to database in app.ts middleware:', err);
+    res.status(500).json({ success: false, message: 'Internal Server Error: Database connection failed' });
+  }
 });
 
 // Security middleware

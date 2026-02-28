@@ -4,6 +4,8 @@ import { config } from './config';
 class Database {
   private static instance: Database;
 
+  private connectionPromise: Promise<typeof mongoose> | null = null;
+
   private constructor() { }
 
   public static getInstance(): Database {
@@ -16,7 +18,18 @@ class Database {
   public async connect(): Promise<void> {
     try {
       if (mongoose.connection.readyState === 1 || mongoose.connection.readyState === 2) {
-        console.log('✅ MongoDB already connected or connecting (reusing connection)');
+        if (!this.connectionPromise) {
+          console.log('✅ MongoDB already connected or connecting (reusing existing connection state)');
+          // Provide a dummy resolved promise if readyState is 1 but we don't hold the promise locally
+          this.connectionPromise = Promise.resolve(mongoose);
+        }
+        await this.connectionPromise;
+        return;
+      }
+
+      if (this.connectionPromise) {
+        console.log('✅ MongoDB connection already in progress, waiting...');
+        await this.connectionPromise;
         return;
       }
 
@@ -24,12 +37,14 @@ class Database {
         ? config.mongodbTestUri
         : config.mongodbUri;
 
-      await mongoose.connect(mongoUri, {
+      this.connectionPromise = mongoose.connect(mongoUri, {
         maxPoolSize: 10,
         serverSelectionTimeoutMS: 5000,
         socketTimeoutMS: 45000,
         bufferCommands: false,
       });
+
+      await this.connectionPromise;
 
       console.log('✅ MongoDB connected successfully');
 
