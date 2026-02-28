@@ -8,8 +8,14 @@ import { config } from './config/config';
 import routes from './routes';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
 import { generalLimiter } from './middlewares/rateLimiter';
+import database from './config/database';
 
 const app = express();
+
+// Connect to database for serverless environments (like Vercel)
+database.connect().catch(err => {
+  console.error('Failed to connect to database in app.ts:', err);
+});
 
 // Security middleware
 app.use(helmet({

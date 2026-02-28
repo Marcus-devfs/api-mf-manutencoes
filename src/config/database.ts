@@ -4,7 +4,7 @@ import { config } from './config';
 class Database {
   private static instance: Database;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): Database {
     if (!Database.instance) {
@@ -15,8 +15,13 @@ class Database {
 
   public async connect(): Promise<void> {
     try {
-      const mongoUri = config.nodeEnv === 'test' 
-        ? config.mongodbTestUri 
+      if (mongoose.connection.readyState === 1 || mongoose.connection.readyState === 2) {
+        console.log('✅ MongoDB already connected or connecting (reusing connection)');
+        return;
+      }
+
+      const mongoUri = config.nodeEnv === 'test'
+        ? config.mongodbTestUri
         : config.mongodbUri;
 
       await mongoose.connect(mongoUri, {
