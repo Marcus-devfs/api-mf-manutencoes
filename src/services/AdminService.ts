@@ -157,6 +157,51 @@ export class AdminService {
             throw error;
         }
     }
+
+    async getServiceById(id: string) {
+        try {
+            const service = await Service.findById(id)
+                .populate('clientId', 'name email phone avatar');
+
+            if (!service) return null;
+
+            // Find the accepted quote to get the professional
+            const acceptedQuote = await Quote.findOne({
+                serviceId: id,
+                status: 'accepted'
+            }).populate('professionalId', 'name email phone avatar');
+
+            const serviceObj = service.toObject();
+            if (acceptedQuote) {
+                (serviceObj as any).professionalId = acceptedQuote.professionalId;
+                (serviceObj as any).acceptedQuote = acceptedQuote;
+            }
+
+            return serviceObj;
+        } catch (error) {
+            console.error('Error fetching service by id:', error);
+            throw error;
+        }
+    }
+
+    async getQuoteById(id: string) {
+        try {
+            return await Quote.findById(id)
+                .populate('clientId', 'name email phone avatar')
+                .populate('professionalId', 'name email phone avatar')
+                .populate({
+                    path: 'serviceId',
+                    select: 'title description category status budget address images',
+                    populate: {
+                        path: 'clientId',
+                        select: 'name email phone avatar'
+                    }
+                });
+        } catch (error) {
+            console.error('Error fetching quote by id:', error);
+            throw error;
+        }
+    }
 }
 
 export default new AdminService();

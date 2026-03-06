@@ -41,6 +41,34 @@ export class AdminController {
             next(error);
         }
     }
+
+    async getServiceById(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await adminService.getServiceById(req.params.id);
+
+            res.status(200).json({
+                success: true,
+                message: 'Serviço encontrado',
+                data: result
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getQuoteById(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await adminService.getQuoteById(req.params.id);
+
+            res.status(200).json({
+                success: true,
+                message: 'Orçamento encontrado',
+                data: result
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 export default new AdminController();

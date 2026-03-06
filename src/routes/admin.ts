@@ -14,4 +14,10 @@ router.get('/services', authenticateToken, requireAdmin, adminController.getServ
 // Quotes route
 router.get('/quotes', authenticateToken, requireAdmin, adminController.getQuotes);
 
+// Single Service route
+router.get('/services/:id', authenticateToken, requireAdmin, adminController.getServiceById);
+
+// Single Quote route
+router.get('/quotes/:id', authenticateToken, requireAdmin, adminController.getQuoteById);
+
 export default router;
