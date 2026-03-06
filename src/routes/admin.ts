@@ -20,4 +20,9 @@ router.get('/services/:id', authenticateToken, requireAdmin, adminController.get
 // Single Quote route
 router.get('/quotes/:id', authenticateToken, requireAdmin, adminController.getQuoteById);
 
+// Payments routes
+router.get('/payments', authenticateToken, requireAdmin, adminController.getPayments);
+router.get('/payments/stats', authenticateToken, requireAdmin, adminController.getPaymentStats);
+router.get('/payments/:id', authenticateToken, requireAdmin, adminController.getPaymentById);
+
 export default router;

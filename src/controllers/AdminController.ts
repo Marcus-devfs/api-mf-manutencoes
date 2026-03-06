@@ -69,6 +69,48 @@ export class AdminController {
             next(error);
         }
     }
+
+    async getPayments(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await adminService.getPayments(req.query);
+
+            res.status(200).json({
+                success: true,
+                message: 'Pagamentos encontrados',
+                data: result
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getPaymentStats(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await adminService.getPaymentStats();
+
+            res.status(200).json({
+                success: true,
+                message: 'Estatísticas de pagamentos obtidas',
+                data: result
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getPaymentById(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await adminService.getPaymentById(req.params.id);
+
+            res.status(200).json({
+                success: true,
+                message: 'Pagamento encontrado',
+                data: { payment: result }
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 export default new AdminController();

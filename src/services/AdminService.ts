@@ -202,6 +202,105 @@ export class AdminService {
             throw error;
         }
     }
+
+    async getPayments(query: any = {}): Promise<{ payments: any[]; total: number; pages: number; page: number; limit: number }> {
+        try {
+            const page = parseInt(query.page as string) || 1;
+            const limit = parseInt(query.limit as string) || 10;
+            const skip = (page - 1) * limit;
+
+            const filter: any = {};
+            if (query.status) filter.status = query.status;
+            if (query.paymentMethod) filter.paymentMethod = query.paymentMethod;
+            if (query.clientId) filter.clientId = query.clientId;
+            if (query.professionalId) filter.professionalId = query.professionalId;
+
+            const [payments, total] = await Promise.all([
+                Payment.find(filter)
+                    .sort({ createdAt: -1 })
+                    .skip(skip)
+                    .limit(limit)
+                    .populate('quoteId', 'title totalPrice status')
+                    .populate('clientId', 'name email phone avatar')
+                    .populate('professionalId', 'name email phone avatar'),
+                Payment.countDocuments(filter)
+            ]);
+
+            return {
+                payments,
+                total,
+                pages: Math.ceil(total / limit),
+                page,
+                limit
+            };
+        } catch (error) {
+            console.error('Error fetching admin payments:', error);
+            throw error;
+        }
+    }
+
+    async getPaymentStats() {
+        try {
+            const statsAgg = await Payment.aggregate([
+                {
+                    $group: {
+                        _id: null,
+                        totalPayments: { $sum: 1 },
+                        totalAmount: { $sum: "$amount" },
+                        totalAppFee: { $sum: "$appFee" },
+                        totalNetAmount: { $sum: "$netAmount" },
+                    }
+                }
+            ]);
+
+            const countsByStatus = await Payment.aggregate([
+                {
+                    $group: {
+                        _id: "$status",
+                        count: { $sum: 1 }
+                    }
+                }
+            ]);
+
+            const statusMap = countsByStatus.reduce((acc, curr) => {
+                acc[curr._id] = curr.count;
+                return acc;
+            }, { pending: 0, completed: 0, failed: 0, refunded: 0 });
+
+            const stats = statsAgg[0] || { totalPayments: 0, totalAmount: 0, totalAppFee: 0, totalNetAmount: 0 };
+
+            return {
+                totalPayments: stats.totalPayments,
+                totalAmount: stats.totalAmount,
+                totalAppFee: stats.totalAppFee,
+                totalNetAmount: stats.totalNetAmount,
+                pendingPayments: statusMap.pending || 0,
+                completedPayments: statusMap.completed || 0,
+                failedPayments: statusMap.failed || 0,
+                refundedPayments: statusMap.refunded || 0,
+            };
+        } catch (error) {
+            console.error('Error fetching admin payment stats:', error);
+            throw error;
+        }
+    }
+
+    async getPaymentById(id: string) {
+        try {
+            const isLegacyId = id.startsWith('pay_') || !id.match(/^[0-9a-fA-F]{24}$/);
+            const filter = isLegacyId ? { transactionId: id } : { _id: id };
+
+            const payment = await Payment.findOne(filter)
+                .populate('quoteId', 'title totalPrice status')
+                .populate('clientId', 'name email phone avatar')
+                .populate('professionalId', 'name email phone avatar');
+
+            return payment;
+        } catch (error) {
+            console.error('Error fetching payment by id:', error);
+            throw error;
+        }
+    }
 }
 
 export default new AdminService();
