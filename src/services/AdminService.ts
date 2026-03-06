@@ -301,6 +301,53 @@ export class AdminService {
             throw error;
         }
     }
+
+    async getUserQuotes(userId: string) {
+        try {
+            return await Quote.find({ clientId: userId })
+                .populate('professionalId', 'name email avatar')
+                .populate('serviceId', 'title category')
+                .sort({ createdAt: -1 });
+        } catch (error) {
+            console.error('Error fetching user quotes:', error);
+            throw error;
+        }
+    }
+
+    async getUserServices(userId: string, role: string) {
+        try {
+            if (role === 'professional') {
+                // For professionals, services are linked via accepted quotes
+                const acceptedQuotes = await Quote.find({
+                    professionalId: userId,
+                    status: 'accepted'
+                }).populate('serviceId');
+
+                // Map to return service objects with the accepted quote attached
+                return acceptedQuotes.map(quote => {
+                    const service = (quote.serviceId as any).toObject ? (quote.serviceId as any).toObject() : quote.serviceId;
+                    return {
+                        ...service,
+                        acceptedQuote: {
+                            _id: quote._id,
+                            totalPrice: quote.totalPrice,
+                            status: quote.status,
+                            paymentStatus: quote.paymentStatus
+                        }
+                    };
+                }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            }
+
+            // For clients, services are linked directly
+            const filter: any = { clientId: userId };
+            return await Service.find(filter)
+                .populate('clientId', 'name email avatar')
+                .sort({ createdAt: -1 });
+        } catch (error) {
+            console.error('Error fetching user services:', error);
+            throw error;
+        }
+    }
 }
 
 export default new AdminService();

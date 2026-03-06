@@ -111,6 +111,31 @@ export class AdminController {
             next(error);
         }
     }
+
+    async getUserQuotes(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await adminService.getUserQuotes(req.params.id);
+            res.status(200).json({
+                success: true,
+                data: result
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getUserServices(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { role } = req.query;
+            const result = await adminService.getUserServices(req.params.id, role as string);
+            res.status(200).json({
+                success: true,
+                data: result
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 export default new AdminController();

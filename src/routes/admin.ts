@@ -25,4 +25,8 @@ router.get('/payments', authenticateToken, requireAdmin, adminController.getPaym
 router.get('/payments/stats', authenticateToken, requireAdmin, adminController.getPaymentStats);
 router.get('/payments/:id', authenticateToken, requireAdmin, adminController.getPaymentById);
 
+// User history routes
+router.get('/users/:id/quotes', authenticateToken, requireAdmin, adminController.getUserQuotes);
+router.get('/users/:id/services', authenticateToken, requireAdmin, adminController.getUserServices);
+
 export default router;
