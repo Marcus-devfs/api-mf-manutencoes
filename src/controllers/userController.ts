@@ -95,11 +95,15 @@ export class UserController {
     const { userId } = req.params;
 
     const user = await UserService.getUserById(userId);
+    const addresses = await AddressService.getUserAddresses(userId);
 
     res.json({
       success: true,
       message: 'Usuário encontrado',
-      data: { user },
+      data: {
+        user,
+        addresses
+      },
     });
   });
 
