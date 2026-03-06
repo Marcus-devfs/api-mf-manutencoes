@@ -588,6 +588,93 @@ export class PaymentService {
     }
   }
 
+  // Obter todos os pagamentos (admin)
+  static async getAllPaymentsAdmin(options: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    paymentMethod?: string;
+    clientId?: string;
+    professionalId?: string;
+  } = {}): Promise<{ payments: IPayment[]; total: number; page: number; pages: number }> {
+    try {
+      const { page = 1, limit = 10, status, paymentMethod, clientId, professionalId } = options;
+      const skip = (page - 1) * limit;
+
+      const filter: any = {};
+      if (status) filter.status = status;
+      if (paymentMethod) filter.paymentMethod = paymentMethod;
+      if (clientId) filter.clientId = clientId;
+      if (professionalId) filter.professionalId = professionalId;
+
+      const [payments, total] = await Promise.all([
+        Payment.find(filter)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .populate('quoteId', 'title totalPrice status')
+          .populate('clientId', 'name email')
+          .populate('professionalId', 'name email'),
+        Payment.countDocuments(filter)
+      ]);
+
+      return {
+        payments,
+        total,
+        page,
+        pages: Math.ceil(total / limit)
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // Obter estatísticas gerais (admin)
+  static async getGeneralPaymentStats(): Promise<any> {
+    try {
+      const statsAgg = await Payment.aggregate([
+        {
+          $group: {
+            _id: null,
+            totalPayments: { $sum: 1 },
+            totalAmount: { $sum: "$amount" },
+            totalAppFee: { $sum: "$appFee" },
+            totalNetAmount: { $sum: "$netAmount" },
+          }
+        }
+      ]);
+
+      const countsByStatus = await Payment.aggregate([
+        {
+          $group: {
+            _id: "$status",
+            count: { $sum: 1 }
+          }
+        }
+      ]);
+
+      const statusMap = countsByStatus.reduce((acc, curr) => {
+        acc[curr._id] = curr.count;
+        return acc;
+      }, { pending: 0, completed: 0, failed: 0, refunded: 0 });
+
+      const stats = statsAgg[0] || { totalPayments: 0, totalAmount: 0, totalAppFee: 0, totalNetAmount: 0 };
+
+      return {
+        totalPayments: stats.totalPayments,
+        totalAmount: stats.totalAmount,
+        totalAppFee: stats.totalAppFee,
+        totalNetAmount: stats.totalNetAmount,
+        pendingPayments: statusMap.pending || 0,
+        completedPayments: statusMap.completed || 0,
+        failedPayments: statusMap.failed || 0,
+        refundedPayments: statusMap.refunded || 0,
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
   // Gerar código PIX (simulado)
   private static generatePixCode(amount: number): string {
     // Em uma implementação real, você usaria um provedor PIX

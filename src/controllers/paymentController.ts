@@ -206,39 +206,30 @@ export class PaymentController {
   static getAllPayments = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const { page, limit, status, paymentMethod, clientId, professionalId } = req.query;
 
-    // Implementar busca de todos os pagamentos para admin
+    const result = await PaymentService.getAllPaymentsAdmin({
+      page: page ? parseInt(page as string) : undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+      status: status as string,
+      paymentMethod: paymentMethod as string,
+      clientId: clientId as string,
+      professionalId: professionalId as string,
+    });
+
     res.json({
       success: true,
       message: 'Pagamentos encontrados',
-      data: {
-        payments: [],
-        pagination: {
-          page: parseInt(page as string) || 1,
-          limit: parseInt(limit as string) || 10,
-          total: 0,
-          pages: 0,
-        },
-      },
+      data: result,
     });
   });
 
   // Obter estatísticas gerais de pagamentos (admin)
   static getGeneralPaymentStats = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    // Implementar estatísticas gerais
+    const stats = await PaymentService.getGeneralPaymentStats();
+
     res.json({
       success: true,
       message: 'Estatísticas obtidas',
-      data: {
-        totalPayments: 0,
-        totalAmount: 0,
-        pendingPayments: 0,
-        completedPayments: 0,
-        failedPayments: 0,
-        refundedPayments: 0,
-        paymentsByMethod: {},
-        paymentsByMonth: {},
-        averagePaymentValue: 0,
-      },
+      data: stats,
     });
   });
 
