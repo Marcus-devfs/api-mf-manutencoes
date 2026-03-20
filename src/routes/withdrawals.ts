@@ -8,6 +8,11 @@ const router = Router();
 router.use(authenticateToken);
 router.use(requireProfessional);
 
+router.get(
+    '/balance',
+    WithdrawalController.getBalance
+);
+
 router.post(
     '/',
     WithdrawalController.validationRules,

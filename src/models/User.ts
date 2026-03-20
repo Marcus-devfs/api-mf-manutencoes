@@ -77,6 +77,11 @@ const userSchema = new Schema<IUser>({
     type: String,
     default: null,
   },
+  asaasApiKey: {
+    type: String,
+    default: null,
+    select: false, // Não expor a API Key nas consultas por padrão
+  },
 }, {
   timestamps: true,
   toJSON: {

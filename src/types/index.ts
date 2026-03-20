@@ -20,6 +20,7 @@ export interface IUser extends Document {
   // Asaas fields
   asaasCustomerId?: string;
   asaasAccountId?: string;
+  asaasApiKey?: string;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;

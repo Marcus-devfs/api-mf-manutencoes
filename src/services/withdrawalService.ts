@@ -1,5 +1,4 @@
 import { Withdrawal } from '../models/Withdrawal';
-import { PaymentService } from './paymentService';
 import { AsaasService } from './asaasService';
 import { User } from '../models/User';
 import { badRequest, notFound } from '../middlewares/errorHandler';
@@ -8,71 +7,64 @@ export class WithdrawalService {
 
     // Solicitar saque
     static async requestWithdrawal(userId: string, amount: number, pixKey?: string, bankAccount?: any) {
-        // 1. Verificar Saldo (Simplificado: Total de Ganhos Líquidos - Total de Saques)
-        // Em um sistema real, teríamos uma tabela de 'Balance' ou 'Ledger'.
-        // Aqui vamos calcular dinamicamente.
-
-        const totalEarnings = await PaymentService.getAvailableBalance(userId);
-
-        const withdrawals = await Withdrawal.find({
-            professionalId: userId,
-            status: { $in: ['pending', 'processed', 'completed'] }
-        });
-
-        const totalWithdrawn = withdrawals.reduce((sum, w) => sum + w.amount, 0);
-        const currentBalance = totalEarnings - totalWithdrawn;
-
-        if (currentBalance < amount) {
-            throw badRequest(`Saldo insuficiente. Disponível: R$ ${currentBalance.toFixed(2)}`);
+        if (!pixKey && !bankAccount) {
+            throw badRequest('Chave PIX ou dados bancários obrigatórios');
         }
 
-        // 2. Buscar dados do usuário para pegar o WalletID do Asaas
-        const user = await User.findById(userId);
+        // 1. Buscar usuário com a asaasApiKey (campo oculto por padrão, precisa do +)
+        const user = await User.findById(userId).select('+asaasApiKey');
         if (!user) throw notFound('Usuário não encontrado');
 
-        // Se não tiver conta Asaas, não tem como sacar (pois não recebeu nada por lá teoricamente, ou está inconsistente)
-        // Mas o sistema permite criar conta na hora do recebimento.
-        // Vamos assumir que se tem saldo, tem conta.
-        const walletId = user.asaasAccountId;
-        // Nota: asaasAccountId armazena o ID da conta. O walletId as vezes é diferente, mas o createProfessionalAccount retorna o walletId.
-        // Vamos assumir que salvamos o walletId ou o ID serve.
+        if (!user.asaasAccountId || !user.asaasApiKey) {
+            throw badRequest('Conta Asaas do profissional não está configurada. Entre em contato com o suporte.');
+        }
 
-        // 3. Processar Saque no Asaas
+        // 2. Consultar saldo real no Asaas
+        const asaasBalance = await AsaasService.getSubAccountBalance(user.asaasApiKey);
+
+        if (asaasBalance < amount) {
+            throw badRequest(`Saldo insuficiente na conta Asaas. Disponível: R$ ${asaasBalance.toFixed(2)}`);
+        }
+
+        // 3. Processar transferência no Asaas usando a API key da sub-conta
         let transferResult;
-
         try {
             if (pixKey) {
                 transferResult = await AsaasService.transferFunds(
-                    walletId || '',
                     amount,
                     'PIX',
+                    user.asaasApiKey,
                     pixKey
                 );
-            } else if (bankAccount) {
+            } else {
                 transferResult = await AsaasService.transferFunds(
-                    walletId || '',
                     amount,
                     'TED',
+                    user.asaasApiKey,
                     undefined,
                     bankAccount
                 );
-            } else {
-                throw badRequest('Chave PIX ou dados bancários obrigatórios');
             }
         } catch (error: any) {
             console.error('Erro no Asaas:', error);
-            throw badRequest('Erro ao processar transferência no parceiro bancário.');
+            throw badRequest(error.message || 'Erro ao processar transferência no parceiro bancário.');
         }
 
-        // 4. Salvar Registro de Saque
+        // 4. Salvar registro de saque
+        const WITHDRAWAL_FEE = 0; // taxa da plataforma por saque (ajuste se necessário)
+
         const withdrawal = new Withdrawal({
             professionalId: userId,
             amount,
-            pixKey,
-            bankAccount,
-            status: 'pending', // Deixa pendente até confirmar webhook ou assumir sucesso imediato?
-            transactionId: transferResult.id,
-            transferDate: new Date()
+            fee: WITHDRAWAL_FEE,
+            netAmount: amount - WITHDRAWAL_FEE,
+            transferType: pixKey ? 'PIX' : 'TED',
+            pixKey: pixKey || undefined,
+            pixKeyType: pixKey ? AsaasService.detectPixKeyType(pixKey) : undefined,
+            bankAccount: bankAccount || undefined,
+            status: 'pending',
+            asaasTransferId: transferResult?.id || undefined,
+            asaasStatus: transferResult?.status || undefined,
         });
 
         await withdrawal.save();
