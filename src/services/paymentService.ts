@@ -135,8 +135,6 @@ export class PaymentService {
         }
       }
 
-      console.log('CPF do usuário:', payerInfo?.cpfCnpj);
-
       // 1. Criar/Buscar Cliente no Asaas (Pagador)
       // O createCustomer agora usa o user.cpfCnpj atualizado
       const asaasCustomerId = await AsaasService.createCustomer(clientId);
@@ -144,9 +142,7 @@ export class PaymentService {
       // Atualizar CPF do cliente no Asaas caso tenha sido fornecido agora
       if (payerInfo?.cpfCnpj) {
         console.log('--- Iniciando Atualização de CPF no Asaas ---');
-        console.log('Customer ID:', asaasCustomerId);
         const cpfCnpjClean = payerInfo.cpfCnpj.replace(/\D/g, '');
-        console.log('CPF Enviado:', cpfCnpjClean);
 
         try {
           const updateResult = await AsaasService.updateCustomer(asaasCustomerId, {
@@ -197,10 +193,21 @@ export class PaymentService {
 
       await payment.save();
 
+      // Buscar QR Code PIX real do Asaas
+      let pixCode = 'fluxo_sandbox_simulado';
+      let qrCode = 'fluxo_sandbox_simulado';
+      try {
+        const pixQrCode = await AsaasService.getPixQrCode(asaasPayment.id);
+        pixCode = pixQrCode.payload || pixCode;
+        qrCode = pixQrCode.encodedImage || qrCode;
+      } catch (err) {
+        console.warn('Não foi possível buscar QR Code PIX, usando fallback sandbox:', err);
+      }
+
       return {
         payment,
-        pixCode: asaasPayment.pixQrCodeId || 'fluxo_sandbox_simulado', // Em sandbox pode não vir
-        qrCode: asaasPayment.encodedImage || 'fluxo_sandbox_simulado'
+        pixCode,
+        qrCode
       };
     } catch (error) {
       throw error;

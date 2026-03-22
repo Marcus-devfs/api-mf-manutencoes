@@ -1,8 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { body, param, query } from 'express-validator';
 import { QuoteService } from '../services/quoteService';
+import { AsaasService } from '../services/asaasService';
 import { asyncHandler, notFound, badRequest } from '../middlewares/errorHandler';
 import { handleValidationErrors } from '../middlewares/validation';
+import { Payment, Quote, Service } from '../models';
 
 export class QuoteController {
   // Validações para criar orçamento
@@ -257,12 +259,6 @@ export class QuoteController {
       throw badRequest('Método de pagamento é obrigatório');
     }
 
-    console.log('paymentMethod', paymentMethod);
-    console.log('paymentId', paymentId);
-    console.log('transactionId', transactionId);
-    console.log('creditCard', creditCard);
-    console.log('creditCardHolderInfo', creditCardHolderInfo);
-
     const result = await QuoteService.processPayment(quoteId, {
       paymentMethod,
       paymentId,
@@ -361,6 +357,39 @@ export class QuoteController {
           pages: 0,
         },
       },
+    });
+  });
+
+  // Simular pagamento PIX no sandbox do Asaas (apenas para testes em desenvolvimento)
+  static simulatePixPayment = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const { quoteId } = req.body;
+
+    if (!quoteId) {
+      throw badRequest('quoteId é obrigatório');
+    }
+
+    const payment = await Payment.findOne({ quoteId });
+    if (!payment || !payment.transactionId) {
+      throw notFound('Pagamento não encontrado para este orçamento');
+    }
+
+    const result = await AsaasService.simulatePixPayment(payment.transactionId, payment.amount);
+
+    // Atualizar Payment
+    await payment.markAsCompleted(payment.transactionId);
+
+    // Atualizar Quote
+    const quote = await Quote.findById(quoteId);
+    if (quote) {
+      await quote.markAsPaid(payment._id.toString());
+      // Atualizar Service para in_progress
+      await Service.findByIdAndUpdate(quote.serviceId, { status: 'in_progress' });
+    }
+
+    res.json({
+      success: true,
+      message: 'Pagamento PIX simulado com sucesso no sandbox',
+      data: result,
     });
   });
 

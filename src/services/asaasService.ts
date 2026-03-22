@@ -369,6 +369,48 @@ export class AsaasService {
         }
     }
 
+    // Buscar QR Code PIX de um pagamento (retorna encodedImage e payload EMV)
+    static async getPixQrCode(paymentId: string): Promise<{ encodedImage: string; payload: string; expirationDate: string }> {
+        try {
+            const { data } = await this.api.get(`/payments/${paymentId}/pixQrCode`);
+            return data;
+        } catch (error: any) {
+            console.error('Erro ao buscar QR Code PIX Asaas:', error.response?.data || error.message);
+            throw new Error(`Falha ao buscar QR Code PIX: ${JSON.stringify(error.response?.data?.errors || error.message)}`);
+        }
+    }
+
+    // Garantir que existe pelo menos uma chave PIX cadastrada na conta (sandbox exige para simulação)
+    private static async ensurePixKey(): Promise<void> {
+        try {
+            const { data } = await this.api.get('/pix/addressKeys');
+            if (data.data && data.data.length > 0) return;
+            // Nenhuma chave cadastrada - registrar uma EVP
+            await this.api.post('/pix/addressKeys', { type: 'EVP' });
+            console.log('Chave PIX EVP registrada no Asaas sandbox');
+        } catch (error: any) {
+            console.warn('Aviso ao verificar/criar chave PIX:', error.response?.data || error.message);
+        }
+    }
+
+    // Simular recebimento de PIX no sandbox do Asaas (não requer saldo)
+    static async simulatePixPayment(asaasPaymentId: string, value: number): Promise<any> {
+        try {
+            await this.ensurePixKey();
+            console.log('Simulando recebimento PIX no Asaas para payment ID:', asaasPaymentId);
+            const paymentDate = new Date().toISOString().split('T')[0];
+            const { data } = await this.api.post(`/payments/${asaasPaymentId}/receiveInCash`, {
+                paymentDate,
+                value,
+            });
+            console.log('Recebimento PIX simulado:', data);
+            return data;
+        } catch (error: any) {
+            console.error('Erro ao simular recebimento PIX Asaas:', error.response?.data || error.message);
+            throw new Error(`Falha ao simular pagamento PIX: ${JSON.stringify(error.response?.data?.errors || error.message)}`);
+        }
+    }
+
     static detectPixKeyType(key: string): 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'EVP' {
         if (key.includes('@')) return 'EMAIL';
         if (key.length === 11 && !isNaN(Number(key))) return 'CPF'; // simplistic

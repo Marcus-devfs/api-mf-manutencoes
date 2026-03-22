@@ -1,6 +1,7 @@
 import { Quote, Service, User, Payment, Notification } from '../models';
 import { IQuote, IService } from '../types';
 import { createError, notFound, badRequest, forbidden } from '../middlewares/errorHandler';
+import { PaymentService } from './paymentService';
 
 export class QuoteService {
   // Criar novo orçamento
@@ -385,12 +386,11 @@ export class QuoteService {
         );
 
       } else if (paymentData.paymentMethod === 'pix') {
-        const { PaymentService } = require('./paymentService');
 
-        console.log('paymentData do usuário:', paymentData);
         // Reutiliza creditCardHolderInfo como payerInfo se disponível
         const payerInfo = paymentData.creditCardHolderInfo;
         result = await PaymentService.processPixPayment(quoteId, quote.clientId.toString(), payerInfo);
+        console.log('Resultado do pagamento Pix:', result); // Log para depuração
 
       } else {
         // Fallback para métodos manuais antigos ou erro

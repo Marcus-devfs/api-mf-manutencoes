@@ -72,6 +72,12 @@ router.post('/:quoteId/payment',
   QuoteController.processPayment
 );
 
+// Simular pagamento PIX no sandbox (apenas para testes)
+router.post('/payment/simulate-pix',
+  requireClient,
+  QuoteController.simulatePixPayment
+);
+
 // Rotas compartilhadas
 router.get('/service/:serviceId',
   requireClientOrProfessional,
