@@ -81,6 +81,13 @@ export class ReviewService {
     async getProfessionalReviews(professionalId: string): Promise<IReview[]> {
         return Review.find({ professionalId }).sort({ createdAt: -1 });
     }
+
+    /**
+     * Busca avaliações feitas por um cliente
+     */
+    async getClientReviews(clientId: string): Promise<IReview[]> {
+        return Review.find({ clientId }).sort({ createdAt: -1 });
+    }
 }
 
 export const reviewService = new ReviewService();

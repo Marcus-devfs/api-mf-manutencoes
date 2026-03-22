@@ -17,6 +17,11 @@ router.post('/',
     ReviewController.create
 );
 
+// GET /client/me - Listar avaliações feitas pelo cliente autenticado
+router.get('/client/me',
+    ReviewController.getMyReviews
+);
+
 // GET /professional/:professionalId - Listar avaliações
 router.get('/professional/:professionalId',
     ReviewController.getByProfessional

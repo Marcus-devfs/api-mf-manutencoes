@@ -64,6 +64,18 @@ export class ReviewController {
     });
 
     /**
+     * Lista avaliações feitas pelo cliente autenticado
+     */
+    static getMyReviews = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+        const clientId = (req as any).user._id;
+        const reviews = await reviewService.getClientReviews(clientId);
+        res.json({
+            success: true,
+            data: reviews,
+        });
+    });
+
+    /**
      * Lista avaliações de um profissional
      */
     static getByProfessional = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
