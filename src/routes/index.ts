@@ -13,6 +13,7 @@ import addressRoutes from './addresses';
 import paymentMethodRoutes from './paymentMethods';
 import withdrawalsRoutes from './withdrawals';
 import adminRoutes from './admin';
+import supportRoutes from './support';
 
 const router = Router();
 
@@ -31,6 +32,7 @@ router.use('/upload', uploadRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/addresses', addressRoutes);
 router.use('/admin', adminRoutes);
+router.use('/support', supportRoutes);
 
 // Rota de health check
 router.get('/health', (req, res) => {

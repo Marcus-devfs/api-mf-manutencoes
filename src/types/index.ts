@@ -320,6 +320,24 @@ export interface INotification extends Document {
   getRecent(userId: string, limit?: number): Promise<INotification[]>;
 }
 
+// Support Types
+export interface ISupportMessage {
+  senderId: string;
+  senderRole: 'user' | 'admin';
+  message: string;
+  createdAt: Date;
+}
+
+export interface ISupport extends Document {
+  _id: string;
+  userId: string;
+  subject: string;
+  status: 'open' | 'in_progress' | 'closed';
+  messages: ISupportMessage[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Push Token Interface
 export interface IPushToken extends Document {
   userId: string;
