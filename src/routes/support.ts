@@ -33,6 +33,8 @@ router.post(
   SupportController.sendUserMessage
 );
 
+router.patch('/my-tickets/:ticketId/close', SupportController.closeTicket);
+
 // Rotas administrativas
 router.get('/admin/all', requireAdmin, SupportController.getAllTickets);
 

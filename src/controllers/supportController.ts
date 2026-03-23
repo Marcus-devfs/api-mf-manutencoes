@@ -106,6 +106,28 @@ export class SupportController {
     });
   });
 
+  // Usuário: encerrar ticket
+  static closeTicket = asyncHandler(async (req: Request, res: Response) => {
+    const userId = (req as any).user._id;
+    const { ticketId } = req.params;
+
+    const ticket = await Support.findOne({ _id: ticketId, userId });
+    if (!ticket) throw notFound('Ticket não encontrado');
+
+    if (ticket.status === 'closed') {
+      throw badRequest('Este ticket já está encerrado.');
+    }
+
+    ticket.status = 'closed';
+    await ticket.save();
+
+    res.json({
+      success: true,
+      message: 'Ticket encerrado com sucesso',
+      data: { ticket },
+    });
+  });
+
   // Admin: listar todos os tickets
   static getAllTickets = asyncHandler(async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
