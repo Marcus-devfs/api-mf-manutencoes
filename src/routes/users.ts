@@ -100,6 +100,10 @@ router.get(
 );
 
 // Rotas para buscar usuários específicos
+router.get('/:userId/professional-profile',
+  UserController.getProfessionalProfileByUserId
+);
+
 router.get('/:userId',
   UserController.getUserById
 );

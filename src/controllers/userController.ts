@@ -229,6 +229,20 @@ export class UserController {
     });
   });
 
+  // Buscar perfil profissional de um usuário por ID
+  static getProfessionalProfileByUserId = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const { userId } = req.params;
+
+    const user = await UserService.getUserById(userId);
+    const profile = await ProfessionalProfileService.getProfile(userId);
+
+    res.json({
+      success: true,
+      message: 'Perfil profissional encontrado',
+      data: { user, profile },
+    });
+  });
+
   // Criar perfil profissional
   static createProfessionalProfile = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const userId = (req as any).user._id;
