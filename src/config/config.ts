@@ -20,13 +20,9 @@ export const config = {
   // CORS
   frontendUrl: process.env.FRONTEND_URL || '*',
 
-  // Email
-  email: {
-    host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.EMAIL_PORT || '587', 10),
-    user: process.env.EMAIL_USER || '',
-    pass: process.env.EMAIL_PASS || '',
-  },
+  // Email (Resend)
+  resendApiKey: process.env.RESEND_API_KEY || '',
+  appUrl: process.env.APP_URL || 'https://conectamarceneiro.com.br',
 
   // AWS S3
   aws: {

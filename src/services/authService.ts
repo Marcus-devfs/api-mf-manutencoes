@@ -8,6 +8,7 @@ import { PushNotificationService } from './pushNotificationService';
 import { AsaasService } from './asaasService';
 import { AddressService } from './addressService';
 import { ProfessionalProfileService } from './professionalProfileService';
+import { EmailService } from './emailService';
 
 
 export class AuthService {
@@ -54,6 +55,13 @@ export class AuthService {
       // 4. Criar Customer no Asaas (Para todos os usuários: Clientes e Profissionais)
       // Isso garante que o usuário exista como "Pagador" no sistema financeiro
       await AsaasService.createCustomer(user._id);
+
+      // Enviar email de verificação (não bloqueia o fluxo em caso de falha)
+      if (user.verificationToken) {
+        EmailService.sendVerificationEmail(user.email, user.name, user.verificationToken).catch((err) => {
+          console.error('Falha ao enviar email de verificação:', err);
+        });
+      }
 
       // Gerar tokens
       const tokens = this.generateTokens(user);
@@ -161,8 +169,9 @@ export class AuthService {
       const resetToken = (user as any).generateResetToken();
       await user.save();
 
-      // Aqui você enviaria o email com o token
-      // await this.sendPasswordResetEmail(user.email, resetToken);
+      EmailService.sendPasswordResetEmail(user.email, user.name, resetToken).catch((err) => {
+        console.error('Falha ao enviar email de reset:', err);
+      });
 
       return {
         message: 'Se o email existir, você receberá instruções para resetar sua senha',
@@ -245,15 +254,4 @@ export class AuthService {
     return crypto.randomBytes(32).toString('hex');
   }
 
-  // Enviar email de verificação (placeholder)
-  private static async sendVerificationEmail(email: string, token: string): Promise<void> {
-    // Implementar envio de email
-    console.log(`Email de verificação para ${email}: ${token}`);
-  }
-
-  // Enviar email de reset de senha (placeholder)
-  private static async sendPasswordResetEmail(email: string, token: string): Promise<void> {
-    // Implementar envio de email
-    console.log(`Email de reset para ${email}: ${token}`);
-  }
 }

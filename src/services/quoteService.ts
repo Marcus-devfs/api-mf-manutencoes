@@ -2,6 +2,7 @@ import { Quote, Service, User, Payment, Notification } from '../models';
 import { IQuote, IService } from '../types';
 import { createError, notFound, badRequest, forbidden } from '../middlewares/errorHandler';
 import { PaymentService } from './paymentService';
+import { EmailService } from './emailService';
 
 export class QuoteService {
   // Criar novo orçamento
@@ -45,6 +46,19 @@ export class QuoteService {
         'quote_received',
         { quoteId: quote._id, serviceId: service._id }
       );
+
+      // Enviar email ao cliente
+      const client = await User.findById(quoteData.clientId);
+      if (client) {
+        EmailService.sendNewQuoteEmail({
+          to: client.email,
+          clientName: client.name,
+          professionalName: professional.name,
+          serviceName: service.title,
+          value: quoteData.totalPrice || 0,
+          estimatedDays: (quoteData as any).estimatedDays || 0,
+        }).catch((err) => console.error('Falha ao enviar email de novo orçamento:', err));
+      }
 
       return quote;
     } catch (error) {
@@ -244,6 +258,22 @@ export class QuoteService {
         { quoteId: quote._id, serviceId: quote.serviceId }
       );
 
+      // Enviar email ao profissional
+      const [professional, client, service] = await Promise.all([
+        User.findById(quote.professionalId),
+        User.findById(quote.clientId),
+        Service.findById(quote.serviceId),
+      ]);
+      if (professional && client && service) {
+        EmailService.sendQuoteAcceptedEmail({
+          to: professional.email,
+          professionalName: professional.name,
+          clientName: client.name,
+          serviceName: service.title,
+          value: (quote as any).totalValue || (quote as any).laborCost || 0,
+        }).catch((err) => console.error('Falha ao enviar email de orçamento aceito:', err));
+      }
+
       return quote;
     } catch (error) {
       throw error;
@@ -272,6 +302,21 @@ export class QuoteService {
         'quote_rejected',
         { quoteId: quote._id, serviceId: quote.serviceId }
       );
+
+      // Enviar email ao profissional
+      const [professional, client, service] = await Promise.all([
+        User.findById(quote.professionalId),
+        User.findById(quote.clientId),
+        Service.findById(quote.serviceId),
+      ]);
+      if (professional && client && service) {
+        EmailService.sendQuoteRejectedEmail({
+          to: professional.email,
+          professionalName: professional.name,
+          clientName: client.name,
+          serviceName: service.title,
+        }).catch((err) => console.error('Falha ao enviar email de orçamento rejeitado:', err));
+      }
 
       return quote;
     } catch (error) {

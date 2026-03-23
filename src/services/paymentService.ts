@@ -1,8 +1,9 @@
-import { Payment, Quote, User } from '../models';
+import { Payment, Quote, User, Service } from '../models';
 import { AsaasService } from './asaasService';
 import { IPayment, IQuote } from '../types';
 import { createError, notFound, badRequest, forbidden } from '../middlewares/errorHandler';
 import { config } from '../config/config';
+import { EmailService } from './emailService';
 
 export class PaymentService {
   // Processar pagamento com Cartão de Crédito (via Asaas)
@@ -233,6 +234,34 @@ export class PaymentService {
       const quote = await Quote.findById(payment.quoteId);
       if (quote) {
         await quote.markAsPaid(payment._id.toString());
+      }
+
+      // Enviar emails de confirmação (cliente e profissional)
+      const [client, professional, service] = await Promise.all([
+        User.findById(payment.clientId),
+        User.findById(payment.professionalId),
+        quote ? Service.findById(quote.serviceId) : null,
+      ]);
+      const serviceName = (service as any)?.title || 'Serviço';
+      if (client) {
+        EmailService.sendPaymentConfirmedClientEmail({
+          to: client.email,
+          clientName: client.name,
+          serviceName,
+          professionalName: professional?.name || 'Profissional',
+          amount: payment.amount,
+          method: 'pix',
+        }).catch((err) => console.error('Falha ao enviar email de pagamento (cliente):', err));
+      }
+      if (professional) {
+        EmailService.sendPaymentReleasedProfessionalEmail({
+          to: professional.email,
+          professionalName: professional.name,
+          serviceName,
+          clientName: client?.name || 'Cliente',
+          grossAmount: payment.amount,
+          netAmount: (payment as any).netAmount || payment.amount * 0.9,
+        }).catch((err) => console.error('Falha ao enviar email de pagamento (profissional):', err));
       }
 
       return payment;
