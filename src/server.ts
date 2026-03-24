@@ -25,18 +25,33 @@ class Server {
   }
 
   private initializeMiddlewares(): void {
+
+    const allowedOrigins = process.env.FRONTEND_URL 
+  ? process.env.FRONTEND_URL.split(',') 
+  : [];
     // Security middleware
     this.app.use(helmet({
       crossOriginResourcePolicy: { policy: "cross-origin" }
     }));
 
     // CORS
-    this.app.use(cors({
-      origin: config.nodeEnv === 'development' ? true : config.frontendUrl,
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Access-Control-Allow-Origin']
-    }));
+  this.app.use(cors({
+  origin: (origin, callback) => {
+    // Se não houver origin (ex: mobile apps ou ferramentas de teste) ou se estiver em dev
+    if (!origin || config.nodeEnv === 'development') {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 
     // Compression
     this.app.use(compression());
