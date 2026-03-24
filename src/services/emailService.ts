@@ -1,7 +1,10 @@
 import { Resend } from 'resend';
 import { config } from '../config/config';
 
-const resend = new Resend(config.resendApiKey);
+function getResendClient(): Resend | null {
+  if (!config.resendApiKey) return null;
+  return new Resend(config.resendApiKey);
+}
 
 const FROM = 'Conecta Marceneiro <noreply@conectamarceneiro.com.br>';
 const APP_URL = config.appUrl;
@@ -98,6 +101,8 @@ export class EmailService {
       ${paragraph('<span style="font-size:13px;color:#9ca3af;">Este link expira em 24 horas. Se você não criou esta conta, ignore este e-mail.</span>')}
     `);
 
+    const resend = getResendClient();
+    if (!resend) { console.warn('EmailService: RESEND_API_KEY not set, skipping email.'); return; }
     await resend.emails.send({
       from: FROM,
       to,
@@ -119,6 +124,8 @@ export class EmailService {
       ${paragraph('<span style="font-size:13px;color:#9ca3af;">Este link expira em 1 hora. Se você não solicitou a redefinição, ignore este e-mail — sua senha continua a mesma.</span>')}
     `);
 
+    const resend = getResendClient();
+    if (!resend) { console.warn('EmailService: RESEND_API_KEY not set, skipping email.'); return; }
     await resend.emails.send({
       from: FROM,
       to,
@@ -153,6 +160,8 @@ export class EmailService {
       ${paragraph('<span style="font-size:13px;color:#9ca3af;">Abra o app para ver todos os detalhes, fazer perguntas e aceitar o orçamento.</span>')}
     `);
 
+    const resend = getResendClient();
+    if (!resend) { console.warn('EmailService: RESEND_API_KEY not set, skipping email.'); return; }
     await resend.emails.send({
       from: FROM,
       to,
@@ -186,6 +195,8 @@ export class EmailService {
       ${paragraph('<span style="font-size:13px;color:#9ca3af;">Acesse o app para combinar os próximos passos com o cliente via chat.</span>')}
     `);
 
+    const resend = getResendClient();
+    if (!resend) { console.warn('EmailService: RESEND_API_KEY not set, skipping email.'); return; }
     await resend.emails.send({
       from: FROM,
       to,
@@ -212,6 +223,8 @@ export class EmailService {
       </div>
     `);
 
+    const resend = getResendClient();
+    if (!resend) { console.warn('EmailService: RESEND_API_KEY not set, skipping email.'); return; }
     await resend.emails.send({
       from: FROM,
       to,
@@ -248,6 +261,8 @@ export class EmailService {
       </div>
     `);
 
+    const resend = getResendClient();
+    if (!resend) { console.warn('EmailService: RESEND_API_KEY not set, skipping email.'); return; }
     await resend.emails.send({
       from: FROM,
       to,
@@ -282,6 +297,8 @@ export class EmailService {
       </div>
     `);
 
+    const resend = getResendClient();
+    if (!resend) { console.warn('EmailService: RESEND_API_KEY not set, skipping email.'); return; }
     await resend.emails.send({
       from: FROM,
       to,
