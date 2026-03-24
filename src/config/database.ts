@@ -69,7 +69,8 @@ class Database {
 
     } catch (error) {
       console.error('❌ MongoDB connection failed:', error);
-      process.exit(1);
+      this.connectionPromise = null;
+      throw error;
     }
   }
 
