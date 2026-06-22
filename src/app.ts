@@ -13,7 +13,7 @@ import database from './config/database';
 const app = express();
 
 // Connect to database middleware for serverless environments (like Vercel)
-app.use(async (req, res, next) => {
+app.use(async (req, res, next) => { 
   try {
     await database.connect();
     next();
