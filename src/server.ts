@@ -79,7 +79,7 @@ class Server {
 
   private initializeRoutes(): void {
     // API routes
-    this.app.use('/api/v1', routes);
+    this.app.use('/', routes);
 
     // Socket.IO health check route
     this.app.get('/socket.io/', (req, res) => {
