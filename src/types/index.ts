@@ -63,6 +63,7 @@ export interface IService extends Document {
     max: number;
   };
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  cancelReason?: string;
   priority: 'low' | 'medium' | 'high';
   deadline?: Date;
   // Route tracking fields

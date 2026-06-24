@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import adminService from '../services/AdminService';
+import { PaymentService } from '../services/paymentService';
+import { ServiceService } from '../services/serviceService';
 
 export class AdminController {
     async getDashboardStats(req: Request, res: Response, next: NextFunction) {
@@ -131,6 +133,55 @@ export class AdminController {
             res.status(200).json({
                 success: true,
                 data: result
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async getWithdrawals(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await adminService.getWithdrawals(req.query);
+            res.status(200).json({
+                success: true,
+                message: 'Saques encontrados',
+                data: result
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async refundPayment(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { id } = req.params;
+            const { reason } = req.body;
+            const userId = (req as any).user._id;
+            const userRole = (req as any).user.role;
+
+            const payment = await PaymentService.processRefund(id, reason, userId, userRole);
+
+            res.status(200).json({
+                success: true,
+                message: 'Reembolso processado com sucesso',
+                data: { payment }
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async cancelService(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { id } = req.params;
+            const { reason } = req.body;
+
+            const service = await ServiceService.adminCancelService(id, reason);
+
+            res.status(200).json({
+                success: true,
+                message: 'Serviço cancelado com sucesso',
+                data: service
             });
         } catch (error) {
             next(error);

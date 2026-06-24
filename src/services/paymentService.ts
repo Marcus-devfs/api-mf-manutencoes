@@ -466,7 +466,14 @@ export class PaymentService {
   // Processar reembolso
   static async processRefund(paymentId: string, reason: string, userId: string, userRole: string): Promise<IPayment> {
     try {
-      const filter = userRole === 'client' ? { _id: paymentId, clientId: userId } : { _id: paymentId, professionalId: userId };
+      let filter: Record<string, string>;
+      if (userRole === 'admin') {
+        filter = { _id: paymentId };
+      } else if (userRole === 'client') {
+        filter = { _id: paymentId, clientId: userId };
+      } else {
+        filter = { _id: paymentId, professionalId: userId };
+      }
 
       const payment = await Payment.findOne(filter);
       if (!payment) {
@@ -477,8 +484,9 @@ export class PaymentService {
         throw badRequest('Pagamento não pode ser reembolsado');
       }
 
-      // Aqui você integraria com o Stripe para processar o reembolso
-      if (payment.stripePaymentIntentId) {
+      if (payment.transactionId) {
+        await AsaasService.refundPayment(payment.transactionId, reason);
+      } else if (payment.stripePaymentIntentId) {
         const stripe = require('stripe')(config.stripe.secretKey);
 
         await stripe.refunds.create({
@@ -491,8 +499,9 @@ export class PaymentService {
         });
       }
 
-      // Marcar como reembolsado
       await payment.processRefund();
+
+      await Quote.findByIdAndUpdate(payment.quoteId, { paymentStatus: 'refunded' });
 
       return payment;
     } catch (error) {

@@ -106,6 +106,11 @@ const serviceSchema = new Schema<IService>({
     enum: ['pending', 'in_progress', 'completed', 'cancelled'],
     default: 'pending',
   },
+  cancelReason: {
+    type: String,
+    trim: true,
+    maxlength: 500,
+  },
   priority: {
     type: String,
     enum: ['low', 'medium', 'high'],
@@ -184,7 +189,7 @@ serviceSchema.index({ createdAt: -1 });
 serviceSchema.index({ 'address.coordinates': '2dsphere' });
 
 // Virtual para calcular dias até o prazo
-serviceSchema.virtual('daysUntilDeadline').get(function () {
+serviceSchema.virtual('daysUntilDeadline').get(function (this: IService) {
   if (!this.deadline) return null;
   const now = new Date();
   const diffTime = this.deadline.getTime() - now.getTime();
@@ -192,13 +197,13 @@ serviceSchema.virtual('daysUntilDeadline').get(function () {
 });
 
 // Virtual para verificar se está próximo do prazo
-serviceSchema.virtual('isNearDeadline').get(function () {
+serviceSchema.virtual('isNearDeadline').get(function (this: IService) {
   const days = this.daysUntilDeadline;
   return days !== null && days <= 3 && days >= 0;
 });
 
 // Virtual para verificar se está atrasado
-serviceSchema.virtual('isOverdue').get(function () {
+serviceSchema.virtual('isOverdue').get(function (this: IService) {
   const days = this.daysUntilDeadline;
   return days !== null && days < 0;
 });

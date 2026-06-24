@@ -147,6 +147,19 @@ export class UserController {
     });
   });
 
+  // Desativar conta (admin)
+  static adminDeactivateAccount = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+    const { userId } = req.params;
+
+    const user = await UserService.adminDeactivateAccount(userId);
+
+    res.json({
+      success: true,
+      message: 'Conta desativada com sucesso',
+      data: { user },
+    });
+  });
+
   // Buscar endereços do usuário
   static getUserAddresses = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
     const userId = (req as any).user._id;

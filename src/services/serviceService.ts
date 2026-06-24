@@ -156,23 +156,47 @@ export class ServiceService {
         throw notFound('Serviço não encontrado');
       }
 
-      if (service.status === 'completed') {
-        throw badRequest('Serviços concluídos não podem ser cancelados');
-      }
-
-      service.status = 'cancelled';
-      await service.save();
-
-      // Cancelar orçamentos pendentes
-      await Quote.updateMany(
-        { serviceId, status: 'pending' },
-        { status: 'expired' }
-      );
-
-      return service;
+      return this.applyServiceCancellation(service, reason);
     } catch (error) {
       throw error;
     }
+  }
+
+  // Cancelar serviço (admin)
+  static async adminCancelService(serviceId: string, reason?: string): Promise<IService> {
+    try {
+      const service = await Service.findById(serviceId);
+      if (!service) {
+        throw notFound('Serviço não encontrado');
+      }
+
+      return this.applyServiceCancellation(service, reason);
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  private static async applyServiceCancellation(service: IService, reason?: string): Promise<IService> {
+    if (service.status === 'completed') {
+      throw badRequest('Serviços concluídos não podem ser cancelados');
+    }
+
+    if (service.status === 'cancelled') {
+      throw badRequest('Serviço já está cancelado');
+    }
+
+    service.status = 'cancelled';
+    if (reason) {
+      service.cancelReason = reason;
+    }
+    await service.save();
+
+    await Quote.updateMany(
+      { serviceId: service._id, status: 'pending' },
+      { status: 'expired' }
+    );
+
+    return service;
   }
 
   // Iniciar serviço (profissional)

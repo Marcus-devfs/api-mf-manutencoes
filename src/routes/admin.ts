@@ -1,32 +1,55 @@
 import { Router } from 'express';
+import { body } from 'express-validator';
 import adminController from '../controllers/AdminController';
 import { authenticateToken, requireAdmin } from '../middlewares';
+import { handleValidationErrors } from '../middlewares/validation';
 
 const router = Router();
 
-// Dashboard stats route
-// Protected route: only authenticated users with 'admin' role can access
-router.get('/dashboard', authenticateToken, requireAdmin, adminController.getDashboardStats);
+const refundValidation = [
+    body('reason')
+        .trim()
+        .isLength({ min: 10, max: 200 })
+        .withMessage('Motivo deve ter entre 10 e 200 caracteres'),
+];
 
-// Services route
-router.get('/services', authenticateToken, requireAdmin, adminController.getServices);
+const cancelServiceValidation = [
+    body('reason')
+        .optional()
+        .trim()
+        .isLength({ max: 500 })
+        .withMessage('Motivo deve ter no máximo 500 caracteres'),
+];
 
-// Quotes route
-router.get('/quotes', authenticateToken, requireAdmin, adminController.getQuotes);
+router.use(authenticateToken, requireAdmin);
 
-// Single Service route
-router.get('/services/:id', authenticateToken, requireAdmin, adminController.getServiceById);
+router.get('/dashboard', adminController.getDashboardStats);
 
-// Single Quote route
-router.get('/quotes/:id', authenticateToken, requireAdmin, adminController.getQuoteById);
+router.get('/services', adminController.getServices);
+router.get('/services/:id', adminController.getServiceById);
+router.patch(
+    '/services/:id/cancel',
+    cancelServiceValidation,
+    handleValidationErrors,
+    adminController.cancelService
+);
 
-// Payments routes
-router.get('/payments', authenticateToken, requireAdmin, adminController.getPayments);
-router.get('/payments/stats', authenticateToken, requireAdmin, adminController.getPaymentStats);
-router.get('/payments/:id', authenticateToken, requireAdmin, adminController.getPaymentById);
+router.get('/quotes', adminController.getQuotes);
+router.get('/quotes/:id', adminController.getQuoteById);
 
-// User history routes
-router.get('/users/:id/quotes', authenticateToken, requireAdmin, adminController.getUserQuotes);
-router.get('/users/:id/services', authenticateToken, requireAdmin, adminController.getUserServices);
+router.get('/payments', adminController.getPayments);
+router.get('/payments/stats', adminController.getPaymentStats);
+router.get('/payments/:id', adminController.getPaymentById);
+router.post(
+    '/payments/:id/refund',
+    refundValidation,
+    handleValidationErrors,
+    adminController.refundPayment
+);
+
+router.get('/withdrawals', adminController.getWithdrawals);
+
+router.get('/users/:id/quotes', adminController.getUserQuotes);
+router.get('/users/:id/services', adminController.getUserServices);
 
 export default router;

@@ -125,6 +125,11 @@ router.patch('/:userId/reactivate',
   UserController.reactivateAccount
 );
 
+router.patch('/:userId/deactivate',
+  requireAdmin,
+  UserController.adminDeactivateAccount
+);
+
 
 
 export default router;

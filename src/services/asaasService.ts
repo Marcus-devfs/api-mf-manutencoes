@@ -393,6 +393,19 @@ export class AsaasService {
         }
     }
 
+    // Estornar cobrança no Asaas
+    static async refundPayment(asaasPaymentId: string, description?: string): Promise<any> {
+        try {
+            const { data } = await this.api.post(`/payments/${asaasPaymentId}/refund`, {
+                description: description || 'Estorno solicitado pelo administrador',
+            });
+            return data;
+        } catch (error: any) {
+            console.error('Erro ao estornar pagamento Asaas:', error.response?.data || error.message);
+            throw new Error(error.response?.data?.errors?.[0]?.description || 'Falha ao estornar pagamento no Asaas');
+        }
+    }
+
     // Simular recebimento de PIX no sandbox do Asaas (não requer saldo)
     static async simulatePixPayment(asaasPaymentId: string, value: number): Promise<any> {
         try {

@@ -60,7 +60,6 @@ router.get('/profile',
 
 router.post('/change-password',
   authenticateToken,
-  requireVerification,
   AuthController.changePasswordValidation,
   handleValidationErrors,
   AuthController.changePassword

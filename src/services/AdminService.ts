@@ -3,6 +3,7 @@ import { Service } from '../models/Service';
 import { Payment } from '../models/Payment';
 import { Quote } from '../models/Quote';
 import { Review } from '../models/Review';
+import { Withdrawal } from '../models/Withdrawal';
 import { SERVICE_CATEGORIES } from '../types';
 
 export class AdminService {
@@ -345,6 +346,38 @@ export class AdminService {
                 .sort({ createdAt: -1 });
         } catch (error) {
             console.error('Error fetching user services:', error);
+            throw error;
+        }
+    }
+
+    async getWithdrawals(query: any) {
+        try {
+            const page = Math.max(1, parseInt(query.page as string) || 1);
+            const limit = Math.min(50, Math.max(1, parseInt(query.limit as string) || 10));
+            const filter: Record<string, string> = {};
+
+            if (query.status) {
+                filter.status = query.status as string;
+            }
+
+            const total = await Withdrawal.countDocuments(filter);
+            const withdrawals = await Withdrawal.find(filter)
+                .populate('professionalId', 'name email phone')
+                .sort({ createdAt: -1 })
+                .skip((page - 1) * limit)
+                .limit(limit);
+
+            return {
+                withdrawals,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    pages: Math.ceil(total / limit) || 1,
+                },
+            };
+        } catch (error) {
+            console.error('Error fetching admin withdrawals:', error);
             throw error;
         }
     }

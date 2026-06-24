@@ -120,6 +120,18 @@ export class UserService {
     }
   }
 
+  // Desativar conta (admin)
+  static async adminDeactivateAccount(targetUserId: string): Promise<IUser> {
+    const user = await User.findById(targetUserId);
+    if (!user) {
+      throw notFound('Usuário não encontrado');
+    }
+    if (user.role === 'admin') {
+      throw badRequest('Não é possível desativar contas de administrador');
+    }
+    return this.deactivateAccount(targetUserId);
+  }
+
   // Reativar conta
   static async reactivateAccount(userId: string): Promise<IUser> {
     try {
