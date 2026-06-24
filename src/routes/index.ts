@@ -14,8 +14,12 @@ import paymentMethodRoutes from './paymentMethods';
 import withdrawalsRoutes from './withdrawals';
 import adminRoutes from './admin';
 import supportRoutes from './support';
+import { PaymentController } from '../controllers/paymentController';
 
 const router = Router();
+
+// Webhook público do Asaas (sem autenticação JWT)
+router.post('/payments/asaas/webhook', PaymentController.asaasWebhook);
 
 // Rotas da API
 router.use('/auth', authRoutes);

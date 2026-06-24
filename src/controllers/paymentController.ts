@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { body, param, query } from 'express-validator';
 import { PaymentService } from '../services/paymentService';
-import { asyncHandler, notFound, badRequest } from '../middlewares/errorHandler';
+import { asyncHandler, notFound, badRequest, forbidden } from '../middlewares/errorHandler';
+import { config } from '../config/config';
 import { handleValidationErrors } from '../middlewares/validation';
 
 export class PaymentController {
@@ -252,19 +253,31 @@ export class PaymentController {
 
   // Webhook do Stripe (para confirmar pagamentos)
   static stripeWebhook = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const sig = req.headers['stripe-signature'] as string;
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
     if (!endpointSecret) {
       throw badRequest('Webhook secret não configurado');
     }
 
-    // Aqui você processaria o webhook do Stripe
-    // Por enquanto, apenas retornamos sucesso
     res.json({
       success: true,
       message: 'Webhook processado com sucesso',
     });
+  });
+
+  // Webhook do Asaas (confirmação automática de pagamentos)
+  static asaasWebhook = asyncHandler(async (req: Request, res: Response) => {
+    const token = req.headers['asaas-access-token'];
+    const secret = config.asaasWebhookSecret;
+
+    if (secret && token !== secret) {
+      res.status(401).json({ success: false, message: 'Token de webhook inválido' });
+      return;
+    }
+
+    await PaymentService.handleAsaasWebhook(req.body);
+
+    res.status(200).json({ received: true });
   });
 
   // Obter métodos de pagamento disponíveis

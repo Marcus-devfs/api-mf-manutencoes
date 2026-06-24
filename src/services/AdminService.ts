@@ -4,7 +4,7 @@ import { Payment } from '../models/Payment';
 import { Quote } from '../models/Quote';
 import { Review } from '../models/Review';
 import { Withdrawal } from '../models/Withdrawal';
-import { SERVICE_CATEGORIES } from '../types';
+import { ProfessionalProfile } from '../models/ProfessionalProfile';
 
 export class AdminService {
     async getDashboardStats() {
@@ -378,6 +378,77 @@ export class AdminService {
             };
         } catch (error) {
             console.error('Error fetching admin withdrawals:', error);
+            throw error;
+        }
+    }
+
+    async getReviews(query: any = {}) {
+        try {
+            const page = Math.max(1, parseInt(query.page as string) || 1);
+            const limit = Math.min(50, Math.max(1, parseInt(query.limit as string) || 10));
+            const skip = (page - 1) * limit;
+
+            const [reviews, total] = await Promise.all([
+                Review.find()
+                    .populate('serviceId', 'title category')
+                    .sort({ createdAt: -1 })
+                    .skip(skip)
+                    .limit(limit),
+                Review.countDocuments(),
+            ]);
+
+            const enriched = await Promise.all(
+                reviews.map(async (review) => {
+                    const [client, professional] = await Promise.all([
+                        User.findById(review.clientId).select('name email'),
+                        User.findById(review.professionalId).select('name email'),
+                    ]);
+                    return { ...review.toObject(), client, professional };
+                })
+            );
+
+            return {
+                reviews: enriched,
+                total,
+                pages: Math.ceil(total / limit) || 1,
+                page,
+                limit,
+            };
+        } catch (error) {
+            console.error('Error fetching admin reviews:', error);
+            throw error;
+        }
+    }
+
+    async deleteReview(id: string) {
+        try {
+            const review = await Review.findById(id);
+            if (!review) {
+                const err: any = new Error('Avaliação não encontrada');
+                err.statusCode = 404;
+                throw err;
+            }
+
+            const professionalId = review.professionalId;
+            await review.deleteOne();
+
+            const remaining = await Review.find({ professionalId });
+            if (remaining.length > 0) {
+                const average = remaining.reduce((sum, r) => sum + r.rating, 0) / remaining.length;
+                await ProfessionalProfile.findOneAndUpdate(
+                    { userId: professionalId },
+                    { rating: parseFloat(average.toFixed(1)) }
+                );
+            } else {
+                await ProfessionalProfile.findOneAndUpdate(
+                    { userId: professionalId },
+                    { rating: 0 }
+                );
+            }
+
+            return review;
+        } catch (error) {
+            console.error('Error deleting review:', error);
             throw error;
         }
     }

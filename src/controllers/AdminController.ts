@@ -187,6 +187,31 @@ export class AdminController {
             next(error);
         }
     }
+
+    async getReviews(req: Request, res: Response, next: NextFunction) {
+        try {
+            const result = await adminService.getReviews(req.query);
+            res.status(200).json({
+                success: true,
+                message: 'Avaliações encontradas',
+                data: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async deleteReview(req: Request, res: Response, next: NextFunction) {
+        try {
+            await adminService.deleteReview(req.params.id);
+            res.status(200).json({
+                success: true,
+                message: 'Avaliação removida com sucesso',
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 export default new AdminController();

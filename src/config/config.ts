@@ -57,4 +57,7 @@ export const config = {
     version: '1.0.0',
     description: 'API para aplicativo de marcenaria',
   },
+
+  // Asaas
+  asaasWebhookSecret: process.env.ASAAS_WEBHOOK_SECRET || process.env.WEBHOOK_SECRET || '',
 };

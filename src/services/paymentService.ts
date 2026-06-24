@@ -76,8 +76,7 @@ export class PaymentService {
       // Simplificação: Consideramos netAmount = (Total - AppFee). O Asaas descontará sua taxa desse montante ou do montante total.
       // Para fins de exibição no app, netAmount é o que a plataforma repassa "teoricamente".
 
-      const availableDate = new Date();
-      availableDate.setDate(availableDate.getDate() + 30); // Cartão demora ~30 dias
+      const availableDate = PaymentService.getHeldUntilServiceDate();
 
       // 4. Salvar
       const payment = new Payment({
@@ -174,8 +173,7 @@ export class PaymentService {
       // 4. Salvar no Banco
       const appFee = quote.totalPrice * 0.10;
       const netAmount = quote.totalPrice - appFee;
-      const availableDate = new Date(); // PIX é imediato ou D+1 dependendo da regra, vamos por D+1 por segurança
-      availableDate.setDate(availableDate.getDate() + 1);
+      const availableDate = PaymentService.getHeldUntilServiceDate();
 
       const payment = new Payment({
         quoteId: quote._id,
@@ -223,48 +221,7 @@ export class PaymentService {
         throw notFound('Pagamento não encontrado');
       }
 
-      if (payment.status !== 'pending') {
-        throw badRequest('Pagamento já foi processado');
-      }
-
-      // Marcar como concluído
-      await payment.markAsCompleted(transactionId);
-
-      // Atualizar orçamento
-      const quote = await Quote.findById(payment.quoteId);
-      if (quote) {
-        await quote.markAsPaid(payment._id.toString());
-      }
-
-      // Enviar emails de confirmação (cliente e profissional)
-      const [client, professional, service] = await Promise.all([
-        User.findById(payment.clientId),
-        User.findById(payment.professionalId),
-        quote ? Service.findById(quote.serviceId) : null,
-      ]);
-      const serviceName = (service as any)?.title || 'Serviço';
-      if (client) {
-        EmailService.sendPaymentConfirmedClientEmail({
-          to: client.email,
-          clientName: client.name,
-          serviceName,
-          professionalName: professional?.name || 'Profissional',
-          amount: payment.amount,
-          method: 'pix',
-        }).catch((err) => console.error('Falha ao enviar email de pagamento (cliente):', err));
-      }
-      if (professional) {
-        EmailService.sendPaymentReleasedProfessionalEmail({
-          to: professional.email,
-          professionalName: professional.name,
-          serviceName,
-          clientName: client?.name || 'Cliente',
-          grossAmount: payment.amount,
-          netAmount: (payment as any).netAmount || payment.amount * 0.9,
-        }).catch((err) => console.error('Falha ao enviar email de pagamento (profissional):', err));
-      }
-
-      return payment;
+      return this.finalizePayment(payment, transactionId);
     } catch (error) {
       throw error;
     }
@@ -717,6 +674,111 @@ export class PaymentService {
       };
     } catch (error) {
       throw error;
+    }
+  }
+
+  static getHeldUntilServiceDate(): Date {
+    return new Date('2099-12-31T23:59:59.999Z');
+  }
+
+  static async finalizePayment(payment: IPayment, transactionId?: string): Promise<IPayment> {
+    if (payment.status !== 'pending') {
+      return payment;
+    }
+
+    await payment.markAsCompleted(transactionId || payment.transactionId || undefined);
+    payment.availableAt = this.getHeldUntilServiceDate();
+    await payment.save();
+
+    const quote = await Quote.findById(payment.quoteId);
+    if (quote) {
+      await quote.markAsPaid(payment._id.toString());
+    }
+
+    const [client, professional, service] = await Promise.all([
+      User.findById(payment.clientId),
+      User.findById(payment.professionalId),
+      quote ? Service.findById(quote.serviceId) : null,
+    ]);
+    const serviceName = (service as any)?.title || 'Serviço';
+    const method = payment.paymentMethod === 'credit_card' ? 'credit_card' : 'pix';
+
+    if (client) {
+      EmailService.sendPaymentConfirmedClientEmail({
+        to: client.email,
+        clientName: client.name,
+        serviceName,
+        professionalName: professional?.name || 'Profissional',
+        amount: payment.amount,
+        method,
+      }).catch((err) => console.error('Falha ao enviar email de pagamento (cliente):', err));
+    }
+
+    return payment;
+  }
+
+  static async scheduleEscrowRelease(quoteId: string): Promise<void> {
+    const payment = await Payment.findOne({ quoteId: quoteId.toString(), status: 'completed' });
+    if (!payment) return;
+
+    const releaseAt = new Date();
+    releaseAt.setDate(releaseAt.getDate() + 3);
+    payment.availableAt = releaseAt;
+    await payment.save();
+
+    const [professional, quote] = await Promise.all([
+      User.findById(payment.professionalId),
+      Quote.findById(payment.quoteId),
+    ]);
+    const service = quote ? await Service.findById(quote.serviceId) : null;
+    const client = await User.findById(payment.clientId);
+
+    if (professional) {
+      EmailService.sendPaymentReleasedProfessionalEmail({
+        to: professional.email,
+        professionalName: professional.name,
+        serviceName: (service as any)?.title || 'Serviço',
+        clientName: client?.name || 'Cliente',
+        grossAmount: payment.amount,
+        netAmount: payment.netAmount || payment.amount * 0.9,
+      }).catch((err) => console.error('Falha ao enviar email de liberação:', err));
+    }
+  }
+
+  static async handleAsaasWebhook(payload: { event?: string; payment?: { id?: string; status?: string } }): Promise<void> {
+    const event = payload.event;
+    const asaasPayment = payload.payment;
+
+    if (!event || !asaasPayment?.id) {
+      console.warn('Asaas webhook: payload inválido', payload);
+      return;
+    }
+
+    const payment = await Payment.findOne({ transactionId: asaasPayment.id });
+    if (!payment) {
+      console.warn('Asaas webhook: pagamento não encontrado', asaasPayment.id);
+      return;
+    }
+
+    switch (event) {
+      case 'PAYMENT_RECEIVED':
+      case 'PAYMENT_CONFIRMED':
+        await this.finalizePayment(payment);
+        break;
+      case 'PAYMENT_OVERDUE':
+        if (payment.status === 'pending') {
+          payment.status = 'failed';
+          await payment.save();
+        }
+        break;
+      case 'PAYMENT_REFUNDED':
+        if (payment.status === 'completed') {
+          await payment.processRefund();
+          await Quote.findByIdAndUpdate(payment.quoteId, { paymentStatus: 'refunded' });
+        }
+        break;
+      default:
+        console.log('Asaas webhook: evento ignorado', event);
     }
   }
 

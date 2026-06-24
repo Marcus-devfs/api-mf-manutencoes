@@ -1,6 +1,7 @@
 import { Service, User, Quote, Notification } from '../models';
 import { IService, IQuote } from '../types';
 import { createError, notFound, badRequest, forbidden } from '../middlewares/errorHandler';
+import { PaymentService } from '../services/paymentService';
 import { getSocketService } from './socketService';
 
 export class ServiceService {
@@ -307,6 +308,9 @@ export class ServiceService {
         'service_started',
         { serviceId: service._id, quoteId: quote._id }
       );
+
+      // Liberar pagamento em custódia após 3 dias sem contestação
+      await PaymentService.scheduleEscrowRelease(quote._id.toString());
 
       return service;
     } catch (error) {

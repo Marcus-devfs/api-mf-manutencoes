@@ -49,6 +49,9 @@ router.post(
 
 router.get('/withdrawals', adminController.getWithdrawals);
 
+router.get('/reviews', adminController.getReviews);
+router.delete('/reviews/:id', adminController.deleteReview);
+
 router.get('/users/:id/quotes', adminController.getUserQuotes);
 router.get('/users/:id/services', adminController.getUserServices);
 
