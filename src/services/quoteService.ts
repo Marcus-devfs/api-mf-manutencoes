@@ -1,8 +1,9 @@
-import { Quote, Service, User, Payment, Notification } from '../models';
+import { Quote, Service, User, Payment } from '../models';
 import { IQuote, IService } from '../types';
 import { createError, notFound, badRequest, forbidden } from '../middlewares/errorHandler';
 import { PaymentService } from './paymentService';
 import { EmailService } from './emailService';
+import { NotificationService } from './notificationService';
 
 export class QuoteService {
   // Criar novo orçamento
@@ -39,12 +40,12 @@ export class QuoteService {
       await quote.save();
 
       // Criar notificação para o cliente
-      await (Notification as any).createNotification(
+      await NotificationService.notifyAndPush(
         quoteData.clientId,
         'Novo Orçamento Recebido',
         `Você recebeu um novo orçamento para o serviço "${service.title}"`,
         'quote_received',
-        { quoteId: quote._id, serviceId: service._id }
+        { quoteId: quote._id.toString(), serviceId: service._id.toString() }
       );
 
       // Enviar email ao cliente
@@ -250,12 +251,12 @@ export class QuoteService {
       // O serviço só vai para 'in_progress' quando o pagamento for confirmado
 
       // Criar notificação para o profissional
-      await (Notification as any).createNotification(
+      await NotificationService.notifyAndPush(
         quote.professionalId,
         'Orçamento Aceito',
         `Seu orçamento foi aceito pelo cliente`,
         'quote_accepted',
-        { quoteId: quote._id, serviceId: quote.serviceId }
+        { quoteId: quote._id.toString(), serviceId: quote.serviceId.toString() }
       );
 
       // Enviar email ao profissional
@@ -295,12 +296,12 @@ export class QuoteService {
       await quote.reject();
 
       // Criar notificação para o profissional
-      await (Notification as any).createNotification(
+      await NotificationService.notifyAndPush(
         quote.professionalId,
         'Orçamento Rejeitado',
         `Seu orçamento foi rejeitado pelo cliente`,
         'quote_rejected',
-        { quoteId: quote._id, serviceId: quote.serviceId }
+        { quoteId: quote._id.toString(), serviceId: quote.serviceId.toString() }
       );
 
       // Enviar email ao profissional
@@ -456,20 +457,20 @@ export class QuoteService {
         // O PaymentService atual não envia notificações, vamos adicionar aqui se necessário ou mover para lá.
         // A implementação anterior do QuoteService enviava. Vamos manter envio aqui se status mudou.
 
-        await (Notification as any).createNotification(
+        await NotificationService.notifyAndPush(
           quote.professionalId,
           'Pagamento Recebido',
           `Você recebeu o pagamento do orçamento "${quote.title}". Pode iniciar o serviço.`,
           'payment_received',
-          { quoteId: quote._id, paymentId: result.payment._id }
+          { quoteId: quote._id.toString(), paymentId: result.payment._id.toString() }
         );
 
-        await (Notification as any).createNotification(
+        await NotificationService.notifyAndPush(
           quote.clientId,
           'Pagamento Confirmado',
           `Seu pagamento foi confirmado. O profissional será notificado para iniciar o serviço.`,
           'payment_confirmed',
-          { quoteId: quote._id, paymentId: result.payment._id }
+          { quoteId: quote._id.toString(), paymentId: result.payment._id.toString() }
         );
       }
 

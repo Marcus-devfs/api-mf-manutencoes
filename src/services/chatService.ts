@@ -2,6 +2,7 @@ import { Chat, ChatMessage, User, Service } from '../models';
 import { IChat, IChatMessage } from '../types';
 import { createError, notFound, badRequest, forbidden } from '../middlewares/errorHandler';
 import { PushNotificationService } from './pushNotificationService';
+import { NotificationService } from './notificationService';
 import { getSocketService } from './socketService';
 
 export class ChatService {
@@ -105,24 +106,27 @@ export class ChatService {
       chat.lastMessage = chatMessage;
       await chat.save();
 
-      // Enviar notificação push para o destinatário
+      // Notificação in-app + push para o destinatário
       try {
         const sender = await User.findById(senderId);
         const service = await Service.findById(chat.serviceId);
-        
+        const preview = type === 'image' ? '📷 Imagem' : message;
+
         if (sender) {
-          await PushNotificationService.sendChatNotification(
+          await NotificationService.notifyAndPush(
             receiverId,
-            sender.name,
-            message,
-            chatId,
-            service?.title
+            `Nova mensagem de ${sender.name}`,
+            preview.length > 100 ? `${preview.substring(0, 100)}...` : preview,
+            'chat_message',
+            {
+              chatId,
+              senderName: sender.name,
+              serviceTitle: service?.title || 'Serviço',
+            }
           );
-          console.log(`📤 Notificação de chat enviada para ${receiverId}`);
         }
       } catch (notificationError) {
-        console.error('❌ Erro ao enviar notificação push:', notificationError);
-        // Não falhar a operação se a notificação falhar
+        console.error('❌ Erro ao enviar notificação:', notificationError);
       }
 
       // Notificar via WebSocket se disponível

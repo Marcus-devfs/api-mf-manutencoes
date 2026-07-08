@@ -1,6 +1,7 @@
 import { Notification, User } from '../models';
 import { INotification } from '../types';
 import { createError, notFound, badRequest } from '../middlewares/errorHandler';
+import { PushNotificationService } from './pushNotificationService';
 
 export class NotificationService {
   // Criar notificação
@@ -26,6 +27,28 @@ export class NotificationService {
     } catch (error) {
       throw error;
     }
+  }
+
+  /** Cria notificação no banco e envia push Expo ao usuário */
+  static async notifyAndPush(
+    userId: string,
+    title: string,
+    message: string,
+    type: string,
+    data?: Record<string, any>
+  ): Promise<INotification> {
+    const notification = await this.createNotification(userId, title, message, type, data);
+
+    try {
+      await PushNotificationService.sendToUser(userId, title, message, {
+        type,
+        ...data,
+      });
+    } catch (error) {
+      console.error('Erro ao enviar push notification:', error);
+    }
+
+    return notification;
   }
 
   // Buscar notificações do usuário

@@ -5,6 +5,7 @@ import { config } from '../config/config';
 import { User } from '../models/User';
 import { Chat, ChatMessage } from '../models';
 import { PushNotificationService } from './pushNotificationService';
+import { NotificationService } from './notificationService';
 
 export interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -232,20 +233,22 @@ export class SocketService {
             });
           }
 
-          // Enviar notificação push para o destinatário se estiver offline
-          if (messageReceiverId && !this.connectedUsers.has(messageReceiverId)) {
-            try {
-              await PushNotificationService.sendChatNotification(
-                messageReceiverId,
-                socket.user?.name || 'Usuário',
-                message,
+          // Notificação in-app + push para o destinatário
+          try {
+            const preview = type === 'image' ? '📷 Imagem' : message;
+            await NotificationService.notifyAndPush(
+              messageReceiverId,
+              `Nova mensagem de ${socket.user?.name || 'Usuário'}`,
+              preview.length > 100 ? `${preview.substring(0, 100)}...` : preview,
+              'chat_message',
+              {
                 chatId,
-                (chat as any).serviceTitle || 'Serviço'
-              );
-              console.log(`📤 Notificação push enviada para ${messageReceiverId}`);
-            } catch (notificationError) {
-              console.error('❌ Erro ao enviar notificação push:', notificationError);
-            }
+                senderName: socket.user?.name || 'Usuário',
+                serviceTitle: (chat as any).serviceTitle || 'Serviço',
+              }
+            );
+          } catch (notificationError) {
+            console.error('❌ Erro ao enviar notificação:', notificationError);
           }
 
           console.log(`📤 Mensagem enviada por ${socket.user?.name} no chat ${chatId}`);

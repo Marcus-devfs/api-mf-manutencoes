@@ -159,10 +159,10 @@ export class PushNotificationService {
       const title = `Nova mensagem de ${senderName}`;
       const body = message.length > 100 ? `${message.substring(0, 100)}...` : message;
       const data = {
-        type: 'chat',
+        type: 'chat_message',
         chatId,
         senderName,
-        serviceTitle: serviceTitle || 'Serviço'
+        serviceTitle: serviceTitle || 'Serviço',
       };
 
       const result = await this.sendToUser(receiverId, title, body, data);

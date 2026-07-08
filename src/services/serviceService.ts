@@ -1,8 +1,9 @@
-import { Service, User, Quote, Notification } from '../models';
+import { Service, User, Quote } from '../models';
 import { IService, IQuote } from '../types';
 import { createError, notFound, badRequest, forbidden } from '../middlewares/errorHandler';
 import { PaymentService } from '../services/paymentService';
 import { getSocketService } from './socketService';
+import { NotificationService } from './notificationService';
 
 export class ServiceService {
   // Criar novo serviço
@@ -238,12 +239,12 @@ export class ServiceService {
       }
 
       // Criar notificação para o cliente
-      await (Notification as any).createNotification(
+      await NotificationService.notifyAndPush(
         service.clientId,
         'Rota Iniciada',
         `O profissional iniciou a rota para o serviço "${service.title}". Você pode acompanhar em tempo real.`,
-        'service_started',
-        { serviceId: service._id, quoteId: quote._id }
+        'route_update',
+        { serviceId: service._id.toString(), quoteId: quote._id.toString(), routeStatus: 'route_started' }
       );
 
       return service;
@@ -301,12 +302,12 @@ export class ServiceService {
       }
 
       // Criar notificação para o cliente
-      await (Notification as any).createNotification(
+      await NotificationService.notifyAndPush(
         service.clientId,
         'Serviço Concluído',
         `O serviço "${service.title}" foi concluído com sucesso.`,
-        'service_started',
-        { serviceId: service._id, quoteId: quote._id }
+        'service_completed',
+        { serviceId: service._id.toString(), quoteId: quote._id.toString() }
       );
 
       // Liberar pagamento em custódia após 3 dias sem contestação
@@ -352,7 +353,8 @@ export class ServiceService {
       console.log('📍 [Backend] Saving Service Location:', service.professionalLocation);
 
       // Se ainda não está em trânsito, atualizar status
-      if (service.routeStatus === 'route_started') {
+      const wasRouteStarted = service.routeStatus === 'route_started';
+      if (wasRouteStarted) {
         service.routeStatus = 'in_transit';
       }
 
@@ -370,6 +372,16 @@ export class ServiceService {
         if (service.routeStatus === 'in_transit') {
           socketService.emitRouteStatusUpdate(service._id.toString(), 'in_transit');
         }
+      }
+
+      if (wasRouteStarted) {
+        await NotificationService.notifyAndPush(
+          service.clientId,
+          'Profissional a caminho',
+          `O profissional está a caminho para o serviço "${service.title}".`,
+          'route_update',
+          { serviceId: service._id.toString(), quoteId: quote._id.toString(), routeStatus: 'in_transit' }
+        );
       }
 
       return service;
@@ -422,12 +434,12 @@ export class ServiceService {
       }
 
       // Criar notificação para o cliente com o código
-      await (Notification as any).createNotification(
+      await NotificationService.notifyAndPush(
         service.clientId,
         'Profissional Chegou',
         `O profissional chegou no local. Seu código de verificação é: ${verificationCode}`,
-        'service_started',
-        { serviceId: service._id, quoteId: quote._id, verificationCode }
+        'route_update',
+        { serviceId: service._id.toString(), quoteId: quote._id.toString(), routeStatus: 'arrived', verificationCode }
       );
 
       return service;
@@ -478,12 +490,12 @@ export class ServiceService {
       }
 
       // Criar notificação para o cliente com o novo código
-      await (Notification as any).createNotification(
+      await NotificationService.notifyAndPush(
         service.clientId,
         'Novo Código de Verificação',
         `Um novo código de verificação foi gerado. Seu código é: ${verificationCode}`,
-        'service_started',
-        { serviceId: service._id, quoteId: quote._id, verificationCode }
+        'route_update',
+        { serviceId: service._id.toString(), quoteId: quote._id.toString(), routeStatus: 'arrived', verificationCode }
       );
 
       return service;
@@ -545,12 +557,12 @@ export class ServiceService {
       }
 
       // Criar notificação para o cliente
-      await (Notification as any).createNotification(
+      await NotificationService.notifyAndPush(
         service.clientId,
         'Serviço Iniciado',
         `O profissional iniciou o serviço "${service.title}" no local.`,
-        'service_started',
-        { serviceId: service._id, quoteId: quote._id }
+        'route_update',
+        { serviceId: service._id.toString(), quoteId: quote._id.toString(), routeStatus: 'service_started' }
       );
 
       return service;
@@ -614,12 +626,12 @@ export class ServiceService {
         }
 
         // Criar notificação para o cliente
-        await (Notification as any).createNotification(
+        await NotificationService.notifyAndPush(
           actualClientId,
           'Serviço Assinado',
           `A assinatura do serviço "${service.title}" foi coletada pelo profissional.`,
           'service_completed',
-          { serviceId: service._id, quoteId: quote._id }
+          { serviceId: service._id.toString(), quoteId: quote._id.toString() }
         );
 
         return service;

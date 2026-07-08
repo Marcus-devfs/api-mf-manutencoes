@@ -22,7 +22,7 @@ const notificationSchema = new Schema<INotification>({
   type: {
     type: String,
     required: [true, 'Tipo da notificação é obrigatório'],
-    enum: ['quote_received', 'quote_accepted', 'quote_rejected', 'payment_received', 'payment_confirmed', 'service_started', 'service_completed', 'chat_message'],
+    enum: ['quote_received', 'quote_accepted', 'quote_rejected', 'payment_received', 'payment_confirmed', 'service_started', 'service_completed', 'chat_message', 'route_update'],
   },
   data: {
     type: Schema.Types.Mixed,
@@ -61,6 +61,7 @@ notificationSchema.virtual('typeInPortuguese').get(function() {
     service_started: 'Serviço Iniciado',
     service_completed: 'Serviço Concluído',
     chat_message: 'Nova Mensagem',
+    route_update: 'Atualização de Rota',
   };
   return typeMap[this.type as keyof typeof typeMap];
 });
