@@ -71,9 +71,7 @@ export class AuthController {
       .withMessage('Senha atual é obrigatória'),
     body('newPassword')
       .isLength({ min: 6 })
-      .withMessage('Nova senha deve ter pelo menos 6 caracteres')
-      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-      .withMessage('Nova senha deve conter pelo menos uma letra minúscula, uma maiúscula e um número'),
+      .withMessage('Nova senha deve ter pelo menos 6 caracteres'),
   ];
 
   // Registrar usuário

@@ -44,6 +44,14 @@ const userSchema = new Schema<IUser>({
     type: Boolean,
     default: true,
   },
+  blockedUsers: [{
+    type: String,
+    ref: 'User',
+  }],
+  deletedAt: {
+    type: Date,
+    default: null,
+  },
   isVerified: {
     type: Boolean,
     default: false,

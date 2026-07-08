@@ -306,4 +306,61 @@ export class EmailService {
       html,
     });
   }
+
+  // Denúncia de conteúdo / usuário (moderação)
+  static async sendModerationReportEmail(params: {
+    reporterName: string;
+    reporterEmail: string;
+    reportedName: string;
+    reportedEmail: string;
+    reason: string;
+    description?: string;
+    chatId?: string;
+    reportId: string;
+  }): Promise<void> {
+    const {
+      reporterName,
+      reporterEmail,
+      reportedName,
+      reportedEmail,
+      reason,
+      description,
+      chatId,
+      reportId,
+    } = params;
+
+    const to = process.env.MODERATION_EMAIL || process.env.SUPPORT_EMAIL || 'suporte@conectamarceneiro.com.br';
+
+    const html = baseTemplate(`
+      ${heading('Nova denúncia de conteúdo')}
+      ${paragraph('Um usuário reportou conteúdo ou comportamento inadequado no app.')}
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+        ${infoBox('ID da denúncia', reportId)}
+        ${infoBox('Motivo', reason)}
+        ${infoBox('Denunciante', `${reporterName} (${reporterEmail})`)}
+        ${infoBox('Denunciado', `${reportedName} (${reportedEmail})`)}
+        ${chatId ? infoBox('Chat', chatId) : ''}
+        ${description ? infoBox('Detalhes', description) : ''}
+      </table>
+      ${paragraph('Analise e tome as medidas necessárias (remoção de conteúdo, aviso ou banimento).')}
+    `);
+
+    const resend = getResendClient();
+    if (!resend) {
+      console.warn('EmailService: RESEND_API_KEY not set. Moderation report:', {
+        reportId,
+        reason,
+        reporterEmail,
+        reportedEmail,
+      });
+      return;
+    }
+
+    await resend.emails.send({
+      from: FROM,
+      to,
+      subject: `[Moderação] Denúncia: ${reason} — Conecta Marceneiro`,
+      html,
+    });
+  }
 }

@@ -11,6 +11,8 @@ export interface IUser extends Document {
   role: 'client' | 'professional' | 'admin';
   avatar?: string;
   isActive: boolean;
+  blockedUsers?: string[];
+  deletedAt?: Date | null;
   isVerified: boolean;
   verificationToken?: string;
   resetPasswordToken?: string;

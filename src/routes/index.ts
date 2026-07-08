@@ -14,6 +14,7 @@ import paymentMethodRoutes from './paymentMethods';
 import withdrawalsRoutes from './withdrawals';
 import adminRoutes from './admin';
 import supportRoutes from './support';
+import moderationRoutes from './moderation';
 import { PaymentController } from '../controllers/paymentController';
 
 const router = Router();
@@ -37,6 +38,7 @@ router.use('/reviews', reviewRoutes);
 router.use('/addresses', addressRoutes);
 router.use('/admin', adminRoutes);
 router.use('/support', supportRoutes);
+router.use('/moderation', moderationRoutes);
 
 // Rota de health check
 router.get('/health', (req, res) => {

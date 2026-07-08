@@ -115,8 +115,10 @@ class Server {
       // Conectar ao banco de dados
       await database.connect();
 
-      // Tentar liberar a porta antes de iniciar
-      await this.killProcessOnPort(this.port);
+      // Em dev local, libera a porta se estiver ocupada (não funciona em Linux/Railway)
+      if (config.nodeEnv === 'development') {
+        await this.killProcessOnPort(this.port);
+      }
 
       // Criar HTTP Server
       this.server = createServer(this.app);

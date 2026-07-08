@@ -9,4 +9,5 @@ export { ProfessionalProfile } from './ProfessionalProfile';
 export { Notification } from './Notification';
 export { PushToken } from './PushToken';
 export { PaymentMethod } from './PaymentMethod';
+export { Report } from './Report';
 

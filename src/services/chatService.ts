@@ -77,6 +77,17 @@ export class ChatService {
         throw forbidden('Você não tem permissão para enviar mensagens neste chat');
       }
 
+      if (!chat.isActive) {
+        throw forbidden('Este chat foi desativado');
+      }
+
+      // Bloqueio mútuo
+      const { ModerationService } = await import('./moderationService');
+      const blocked = await ModerationService.isBlockedBetween(senderId, receiverId);
+      if (blocked) {
+        throw forbidden('Não é possível enviar mensagens para este usuário');
+      }
+
       // Criar mensagem
       const chatMessage = new ChatMessage({
         chatId,
@@ -221,25 +232,34 @@ export class ChatService {
       const { page = 1, limit = 20 } = options;
       const skip = (page - 1) * limit;
 
+      const user = await User.findById(userId).select('blockedUsers');
+      const blockedIds = user?.blockedUsers || [];
+
+      const filter: any = {
+        participants: userId,
+        isActive: true,
+      };
+
       const [chats, total] = await Promise.all([
-        Chat.find({ 
-          participants: userId, 
-          isActive: true 
-        })
+        Chat.find(filter)
           .sort({ 'lastMessage.createdAt': -1 })
           .skip(skip)
           .limit(limit)
-          .populate('participants', 'name avatar')
+          .populate('participants', 'name avatar phone')
           .populate('serviceId', 'title description status'),
-        Chat.countDocuments({ 
-          participants: userId, 
-          isActive: true 
-        })
+        Chat.countDocuments(filter)
       ]);
 
-      // Calcular unreadCount para cada chat
+      // Calcular unreadCount e filtrar chats com usuários bloqueados
       const chatsWithUnreadCount = await Promise.all(
-        chats.map(async (chat) => {
+        chats
+          .filter((chat) => {
+            const otherId = chat.participants
+              .map((p: any) => (typeof p === 'string' ? p : p._id?.toString()))
+              .find((id: string) => id !== userId);
+            return otherId ? !blockedIds.includes(otherId) : true;
+          })
+          .map(async (chat) => {
           const unreadCount = await ChatMessage.countDocuments({
             chatId: chat._id,
             receiverId: userId,

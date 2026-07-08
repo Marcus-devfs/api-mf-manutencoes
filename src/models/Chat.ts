@@ -33,7 +33,8 @@ const chatMessageSchema = new Schema<IChatMessage>({
     validate: {
       validator: function(v: string) {
         if (this.type === 'text') return true;
-        return /^https?:\/\/.+/.test(v);
+        if (!v) return false;
+        return /^https?:\/\/.+/.test(v) || v.startsWith('/uploads/');
       },
       message: 'URL do arquivo inválida',
     },

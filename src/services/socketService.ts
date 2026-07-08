@@ -154,6 +154,18 @@ export class SocketService {
             return;
           }
 
+          if (!chat.isActive) {
+            socket.emit('error', { message: 'Este chat foi desativado' });
+            return;
+          }
+
+          const { ModerationService } = await import('./moderationService');
+          const blocked = await ModerationService.isBlockedBetween(socket.userId!, messageReceiverId);
+          if (blocked) {
+            socket.emit('error', { message: 'Não é possível enviar mensagens para este usuário' });
+            return;
+          }
+
           // Criar mensagem
           const newMessage = new ChatMessage({
             chatId,

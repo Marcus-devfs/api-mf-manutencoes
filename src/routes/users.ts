@@ -29,7 +29,15 @@ router.put('/profile',
 );
 
 router.delete('/profile',
+  UserController.deleteAccount
+);
+
+router.post('/profile/deactivate',
   UserController.deactivateAccount
+);
+
+router.post('/avatar',
+  UserController.uploadAvatar
 );
 
 // Rotas para endereços

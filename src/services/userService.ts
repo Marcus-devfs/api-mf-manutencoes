@@ -80,12 +80,26 @@ export class UserService {
       }
 
       // Campos que podem ser atualizados
-      const allowedFields = ['name', 'phone', 'avatar'];
+      const allowedFields = ['name', 'phone', 'avatar', 'email'];
       const updates: any = {};
 
       for (const field of allowedFields) {
         if (updateData[field as keyof IUser] !== undefined) {
           updates[field] = updateData[field as keyof IUser];
+        }
+      }
+
+      // Especialidades (profissionais) — atualiza perfil profissional se enviado
+      if (Array.isArray((updateData as any).specialties)) {
+        try {
+          const { ProfessionalProfile } = await import('../models');
+          await ProfessionalProfile.findOneAndUpdate(
+            { userId },
+            { specialties: (updateData as any).specialties },
+            { upsert: false }
+          );
+        } catch (error) {
+          console.error('Erro ao atualizar especialidades:', error);
         }
       }
 
@@ -101,7 +115,7 @@ export class UserService {
     }
   }
 
-  // Desativar conta
+  // Desativar conta (admin / soft)
   static async deactivateAccount(userId: string): Promise<IUser> {
     try {
       const user = await User.findByIdAndUpdate(
@@ -117,6 +131,48 @@ export class UserService {
       return user;
     } catch (error) {
       throw error;
+    }
+  }
+
+  /**
+   * Exclusão permanente de conta (Apple 5.1.1(v)).
+   * Anonimiza dados pessoais e desativa o acesso — não pode ser revertida pelo usuário.
+   */
+  static async deleteAccount(userId: string): Promise<void> {
+    const user = await User.findById(userId).select('+password +asaasApiKey');
+    if (!user) {
+      throw notFound('Usuário não encontrado');
+    }
+
+    const timestamp = Date.now();
+    const anonymizedEmail = `deleted_${userId}_${timestamp}@deleted.local`;
+
+    user.name = 'Conta excluída';
+    user.email = anonymizedEmail;
+    user.phone = '(00) 00000-0000';
+    user.avatar = undefined;
+    user.cpfCnpj = undefined;
+    user.birthDate = undefined;
+    user.password = `deleted_${timestamp}_${Math.random().toString(36)}`;
+    user.isActive = false;
+    user.deletedAt = new Date();
+    user.verificationToken = undefined;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    user.asaasApiKey = undefined;
+    user.blockedUsers = [];
+
+    await user.save();
+
+    // Desativa chats do usuário
+    try {
+      const { Chat } = await import('../models');
+      await Chat.updateMany(
+        { participants: userId, isActive: true },
+        { isActive: false }
+      );
+    } catch (error) {
+      console.error('Erro ao desativar chats na exclusão de conta:', error);
     }
   }
 

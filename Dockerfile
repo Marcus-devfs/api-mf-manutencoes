@@ -1,39 +1,33 @@
-# Use Node.js LTS version
-FROM node:18-alpine
+# ── Stage 1: build ──────────────────────────────────────────
+FROM node:20-alpine AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files
 COPY package*.json ./
+RUN npm ci
 
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy source code
 COPY . .
-
-# Build the application
 RUN npm run build
 
-# Remove dev dependencies
-RUN npm prune --production
+# ── Stage 2: production ─────────────────────────────────────
+FROM node:20-alpine AS runner
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
+WORKDIR /app
 
-# Change ownership of the app directory
+ENV NODE_ENV=production
+
+COPY package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+COPY --from=builder /app/dist ./dist
+
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
 RUN chown -R nodejs:nodejs /app
 USER nodejs
 
-# Expose port
 EXPOSE 3001
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3001/api/v1/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "require('http').get('http://127.0.0.1:' + (process.env.PORT || 3001) + '/api/v1/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
 
-# Start the application
-CMD ["npm", "start"]
-
+CMD ["node", "dist/server.js"]

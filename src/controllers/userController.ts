@@ -5,6 +5,7 @@ import { ProfessionalProfileService } from '../services/professionalProfileServi
 import { AddressService } from '../services/addressService';
 import { asyncHandler, notFound, badRequest } from '../middlewares/errorHandler';
 import { handleValidationErrors } from '../middlewares/validation';
+import { uploadSingle, handleUploadError } from '../middlewares/upload';
 
 export class UserController {
   // Validações para atualizar perfil
@@ -20,7 +21,10 @@ export class UserController {
       .withMessage('Telefone deve estar no formato (XX) XXXXX-XXXX'),
     body('avatar')
       .optional()
-      .isURL()
+      .custom((value) => {
+        if (!value) return true;
+        return typeof value === 'string' && (value.startsWith('http') || value.startsWith('/uploads/'));
+      })
       .withMessage('Avatar deve ser uma URL válida'),
   ];
 
@@ -90,9 +94,9 @@ export class UserController {
       .withMessage('Raio de atendimento deve ser entre 1 e 100 km'),
   ];
 
-  // Buscar usuário por ID
+  // Buscar usuário por ID (ou perfil autenticado em /profile)
   static getUserById = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const { userId } = req.params;
+    const userId = req.params.userId || (req as any).user?._id;
 
     const user = await UserService.getUserById(userId);
     const addresses = await AddressService.getUserAddresses(userId);
@@ -131,6 +135,18 @@ export class UserController {
       success: true,
       message: 'Conta desativada com sucesso',
       data: { user },
+    });
+  });
+
+  // Excluir conta permanentemente (Apple Guideline 5.1.1(v))
+  static deleteAccount = asyncHandler(async (req: Request, res: Response) => {
+    const userId = (req as any).user._id;
+
+    await UserService.deleteAccount(userId);
+
+    res.json({
+      success: true,
+      message: 'Conta excluída permanentemente',
     });
   });
 
@@ -383,6 +399,28 @@ export class UserController {
       data: result
     });
   });
+
+  // Upload de avatar
+  static uploadAvatar = [
+    uploadSingle('avatar'),
+    handleUploadError,
+    asyncHandler(async (req: any, res: Response) => {
+      const userId = req.user._id;
+
+      if (!req.file) {
+        throw badRequest('Nenhum arquivo foi enviado');
+      }
+
+      const avatarUrl = `/uploads/${req.file.filename}`;
+      const user = await UserService.updateProfile(userId, { avatar: avatarUrl } as any);
+
+      res.json({
+        success: true,
+        message: 'Avatar atualizado com sucesso',
+        data: { avatarUrl, user },
+      });
+    }),
+  ];
 
   // Completar perfil financeiro (CPF/CNPJ e Data de Nascimento) e criar conta Asaas
   static completeFinancialProfile = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
